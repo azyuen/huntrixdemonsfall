@@ -2,46 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#09051a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Demons Fall" />
-  <link rel="manifest" href="/huntrixdemonsfall/manifest.webmanifest" />
+  <link rel="manifest" href="/huntrixdemonsfall/manifest.webmanifest?v=60" />
   <title>HUNTR/X: Demons Fall</title>
   <style>
     :root{background:#09051a;color-scheme:dark}
-    html,body,#app{
-      margin:0;
-      width:100%;
-      height:100%;
-      min-width:100%;
-      min-height:100%;
-      overflow:hidden;
-      touch-action:none;
-      overscroll-behavior:none;
-      -webkit-user-select:none;
-      user-select:none;
-    }
-    html,body{
-      position:fixed;inset:0;width:100vw;height:100vh;width:100dvw;height:100dvh;
-      background:#09051a;
-    }
-    #app{
-      position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-      background:
-        linear-gradient(rgba(6,5,25,.18),rgba(8,5,24,.52)),
-        url('/huntrixdemonsfall/assets/seoul_skyline_strip.jpg') center center / cover no-repeat;
-    }
-    #app::after{
-      content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
-      background:radial-gradient(circle at 70% 20%,rgba(118,87,255,.12),transparent 36%),linear-gradient(to top,rgba(9,5,26,.56),transparent 42%);
-    }
+    html,body,#app{margin:0;width:100%;height:100%;min-width:100%;min-height:100%;overflow:hidden;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;}
+    html,body{position:fixed;inset:0;width:100vw;height:100vh;width:100dvw;height:100dvh;background:#09051a;}
+    #app{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#09051a;}
     canvas{display:block;margin:0;max-width:100%;max-height:100%;position:relative;z-index:1;}
     #status{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;color:#fff;background:#09051a;font:600 24px system-ui;text-align:center;padding:24px}
     #status small{display:block;margin-top:12px;font:400 14px system-ui;color:#bdb4d8}
     #rotate{display:none;position:fixed;inset:0;z-index:10;background:#09051a;color:white;align-items:center;justify-content:center;text-align:center;font:600 22px system-ui;padding:32px}
+    #build{position:fixed;left:max(10px,env(safe-area-inset-left));bottom:max(8px,env(safe-area-inset-bottom));z-index:9999;padding:4px 7px;border-radius:7px;background:#ff2da8;color:#fff;font:700 10px system-ui;letter-spacing:.5px;pointer-events:none}
     @media(orientation:portrait) and (max-width:900px){#rotate{display:flex}}
   </style>
 </head>
@@ -49,6 +30,7 @@
   <div id="app"></div>
   <div id="status">Loading HUNTR/X: Demons Fall…<small>If this message remains, the game script did not start.</small></div>
   <div id="rotate">Rotate your device to landscape to play.</div>
+  <div id="build">BUILD 60</div>
   <script>
     window.addEventListener('error', function (e) {
       var s=document.getElementById('status');
@@ -59,6 +41,6 @@
       if(s){s.innerHTML='Game error:<br><small>'+String((e.reason&&e.reason.message)||e.reason||'Unhandled promise rejection')+'</small>';}
     });
   </script>
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/main.js?v=60"></script>
 </body>
 </html>
