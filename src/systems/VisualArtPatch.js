@@ -6,26 +6,34 @@ export function installVisualArt(GameScene){
   const originalKillEnemy=GameScene.prototype.killEnemy;
   const originalPerformAttack=GameScene.prototype.performAttack;
 
+  const rumiFrames={idle:0,run:1,jump:2,attack1:3,attack2:4,finisher:5,aerial:6,dodge:7};
+
+  const setRumiFrame=(scene,name)=>{
+    if(scene.characterId!=='rumi'||!scene.textures.exists('rumi_sheet'))return false;
+    const frame=rumiFrames[name]??0;
+    if(scene.player.texture.key!=='rumi_sheet'||scene.player.frame.name!==frame)scene.player.setTexture('rumi_sheet',frame);
+    return true;
+  };
+
   GameScene.prototype.create=function(...args){
     originalCreate.apply(this,args);
 
-    // Remove the old procedural skyline/window blocks now that real background art is loaded.
+    // Kill every old procedural background object. The CSS art layer is now the only skyline.
     this.children.list.slice().forEach(obj=>{
       if(obj===this.player)return;
-      if(obj.depth<=-4 && (obj.type==='Rectangle'||obj.type==='Arc')) obj.destroy();
+      if(obj.depth<0)obj.destroy();
     });
 
-    // Illustrated Seoul background, fixed behind gameplay. Two copies provide enough width without stretching the art excessively.
-    if(this.textures.exists('seoulSky')){
-      const a=this.add.image(780,360,'seoulSky').setDisplaySize(1560,720).setScrollFactor(0).setDepth(-30).setAlpha(.9);
-      const b=this.add.image(2340,360,'seoulSky').setDisplaySize(1560,720).setScrollFactor(.08,0).setDepth(-29).setAlpha(.35).setTint(0x756a98);
-      a.setOrigin(.5);b.setOrigin(.5);
-    }
-
     this.player.setDepth(20);
-    this.player.setTexture(this.characterId);
-    this.player.setDisplaySize(this.characterId==='mira'?86:this.characterId==='zoey'?74:80,this.characterId==='mira'?112:this.characterId==='zoey'?94:104);
-    this.player.body.setSize(this.characterId==='mira'?36:34,this.characterId==='zoey'?72:82,true);
+    if(this.characterId==='rumi'&&this.textures.exists('rumi_sheet')){
+      this.player.setTexture('rumi_sheet',rumiFrames.idle);
+      this.player.setDisplaySize(260,123);
+      this.player.body.setSize(28,65,true);
+    }else{
+      this.player.setTexture(this.characterId);
+      this.player.setDisplaySize(this.characterId==='mira'?86:74,this.characterId==='mira'?112:94);
+      this.player.body.setSize(this.characterId==='mira'?36:34,this.characterId==='zoey'?72:82,true);
+    }
   };
 
   GameScene.prototype.spawnEnemy=function(type,x,y){
@@ -43,8 +51,10 @@ export function installVisualArt(GameScene){
   GameScene.prototype.performAttack=function(time){
     originalPerformAttack.call(this,time);
     const pose=this.comboStep===0?'attack1':this.comboStep===1?'attack2':'finisher';
-    const key=`${this.characterId}_${pose}`;
-    if(this.textures.exists(key))this.player.setTexture(key);
+    if(!setRumiFrame(this,pose)){
+      const key=`${this.characterId}_${pose}`;
+      if(this.textures.exists(key))this.player.setTexture(key);
+    }
   };
 
   GameScene.prototype.hitEnemy=function(e,damage,step,buildSync=false){
@@ -63,20 +73,34 @@ export function installVisualArt(GameScene){
   GameScene.prototype.update=function(time,delta){
     originalUpdate.call(this,time,delta);
 
-    // Animate hunter using pose textures while preserving the existing physics/combat system.
     if(this.player?.active){
       this.player.setFlipX(this.lastFacing<0);
-      if(!this.isAttacking){
+      if(this.characterId==='rumi'&&this.textures.exists('rumi_sheet')){
+        if(!this.isAttacking){
+          const grounded=this.player.body.blocked.down||this.player.body.touching.down;
+          if(this.player.alpha<.8)setRumiFrame(this,'dodge');
+          else if(!grounded)setRumiFrame(this,Math.abs(this.player.body.velocity.x)>250?'aerial':'jump');
+          else if(Math.abs(this.player.body.velocity.x)>45){
+            setRumiFrame(this,'run');
+            // small cadence motion so the source frame feels alive rather than like a cardboard cutout
+            const bob=Math.sin(time/70)*2.2;
+            this.player.setAngle(Math.sin(time/95)*1.8);
+            this.player.y+=bob*.08;
+          }else{
+            setRumiFrame(this,'idle');
+            this.player.setAngle(0);
+          }
+        }
+      }else if(!this.isAttacking){
         const grounded=this.player.body.blocked.down||this.player.body.touching.down;
         let key=this.characterId;
-        if(this.player.alpha<.8) key=`${this.characterId}_dodge`;
-        else if(!grounded) key=`${this.characterId}_jump`;
-        else if(Math.abs(this.player.body.velocity.x)>45) key=`${this.characterId}_${Math.floor(time/130)%2?'run1':'run2'}`;
+        if(this.player.alpha<.8)key=`${this.characterId}_dodge`;
+        else if(!grounded)key=`${this.characterId}_jump`;
+        else if(Math.abs(this.player.body.velocity.x)>45)key=`${this.characterId}_${Math.floor(time/130)%2?'run1':'run2'}`;
         if(this.textures.exists(key)&&this.player.texture.key!==key)this.player.setTexture(key);
       }
     }
 
-    // Keep enemy art exactly over invisible physics bodies and face the player.
     if(this.enemies){
       this.enemies.getChildren().forEach(e=>{
         if(!e.visual?.active)return;
