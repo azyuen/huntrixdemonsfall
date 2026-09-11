@@ -26,10 +26,10 @@ import gap322c from './rumiAnimChunks/gap322c.js';
 import gap372a from './rumiAnimChunks/gap372a.js';
 import gap372b from './rumiAnimChunks/gap372b.js';
 
-// Reconstruct the approved 313,480-byte WebP atlas exactly. Some of the original
-// staging files overlap; the slices below intentionally pick only the contiguous
-// ranges from the verified source atlas.
-export const rumiAnimationBase64 = [
+// Reconstruct the approved 313,480-byte WebP atlas. Three staged source ranges
+// were damaged by transport truncation markers; replace those exact 23-character
+// spans with the verified bytes from the approved atlas before decoding.
+const stagedRumiAnimationBase64 = [
   c00,c01,c02,c03,c04,c05,c06,c07,c08,c09,
   c10a,c10b,c11a,c11b,c12,c13,
   tail0.slice(0,18000),
@@ -40,5 +40,17 @@ export const rumiAnimationBase64 = [
   gap372a,gap372b,
   tail3
 ].join('');
+
+const atlasRepairs = [
+  [262000, 'motgC2xiWJdOvmp9mZIAoP1'],
+  [311984, 'azaRc8atiM/DJiG9OErpAGb'],
+  [361984, '9wzdpTAfCTHsHjmoUeU959O']
+];
+
+export const rumiAnimationBase64 = atlasRepairs.reduce(
+  (value, [offset, replacement]) =>
+    value.slice(0, offset) + replacement + value.slice(offset + replacement.length),
+  stagedRumiAnimationBase64
+);
 
 export const rumiAnimationDataUrl = `data:image/webp;base64,${rumiAnimationBase64}`;
