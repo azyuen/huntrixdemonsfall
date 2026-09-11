@@ -90,12 +90,56 @@ export function installVisualArt(GameScene){
     scene.add.rectangle(W/2,548,W,6,0x6f4f85,.40).setScrollFactor(0).setDepth(-113);
   };
 
+  // HUD is rendered by the same zoomed camera as the world. Counter-transform it back
+  // into screen space so health/sync never disappear when gameplay zoom changes.
+  const layoutHUDForZoom=scene=>{
+    const zoom=scene.cameras.main.zoom||1;
+    const inv=1/zoom;
+    const cx=scene.scale.width/2,cy=scene.scale.height/2;
+    const map=(sx,sy)=>({x:cx+(sx-cx)/zoom,y:cy+(sy-cy)/zoom});
+    const place=(obj,sx,sy)=>{
+      if(!obj)return;
+      const p=map(sx,sy);
+      obj.setPosition(p.x,p.y).setScale(inv);
+    };
+
+    const hudBgs=scene.children.list.filter(o=>o.depth===120&&o.scrollFactorX===0&&o.type==='Rectangle');
+    const nearest=(tx,ty,exclude)=>hudBgs.filter(o=>o!==exclude).sort((a,b)=>((a.x-tx)**2+(a.y-ty)**2)-((b.x-tx)**2+(b.y-ty)**2))[0];
+    scene._healthHudBg=scene._healthHudBg||nearest(175,48,null);
+    scene._syncHudBg=scene._syncHudBg||nearest(780,92,scene._healthHudBg);
+
+    place(scene._healthHudBg,190,52);
+    if(scene._healthHudBg)scene._healthHudBg.setScale(inv);
+    place(scene.healthBar,56,52);
+    if(scene.healthBar)scene.healthBar.setOrigin(0,.5);
+    place(scene.healthText,190,52);
+    if(scene.healthText)scene.healthText.setFontSize(15);
+
+    place(scene._syncHudBg,640,54);
+    if(scene._syncHudBg)scene._syncHudBg.setScale(inv);
+    place(scene.syncBar,477,54);
+    if(scene.syncBar)scene.syncBar.setOrigin(0,.5);
+    place(scene.syncText,640,54);
+    if(scene.syncText)scene.syncText.setFontSize(13);
+
+    place(scene.comboText,640,90);
+    if(scene.comboText)scene.comboText.setFontSize(18);
+    place(scene.styleText,1080,50);
+    if(scene.styleText)scene.styleText.setFontSize(14);
+    place(scene.upgradeText,1080,76);
+    if(scene.upgradeText)scene.upgradeText.setFontSize(11);
+
+    place(scene.bossHudBg,640,112);
+    place(scene.bossHudBar,363,112);
+    if(scene.bossHudBar)scene.bossHudBar.setOrigin(0,.5);
+    place(scene.bossHudText,640,112);
+  };
+
   GameScene.prototype.create=function(...args){
     originalCreate.apply(this,args);
     this.children.list.slice().forEach(obj=>{if(obj!==this.player&&obj.depth<0)obj.destroy();});
     buildSkyline(this);
 
-    // Closer mobile framing for larger characters and more readable combat.
     this.cameras.main.setZoom(1.42);
     this.cameras.main.startFollow(this.player,true,.12,.10,135,2);
 
@@ -104,19 +148,16 @@ export function installVisualArt(GameScene){
       this.add.rectangle(p.x,p.y-p.height/2+3,Math.max(12,p.width-8),7,0xa383ad,.76).setDepth(3);
       if(i%2===0){const unit=this.add.rectangle(p.x-p.width*.28,p.y-p.height/2-22,54,34,0x191c30,.96).setDepth(4).setStrokeStyle(2,0x5f6077,.5);this.add.circle(unit.x-12,unit.y,8,0x090b13,.9).setDepth(5).setStrokeStyle(2,0x6d6f88,.5);this.add.circle(unit.x+12,unit.y,8,0x090b13,.9).setDepth(5).setStrokeStyle(2,0x6d6f88,.5);}
     });
+
     this._nextPetal=0;this._lastRumiGhost=0;this._rumiAttackLockUntil=0;
     if(this.characterId==='rumi'&&this.textures.exists('rumi_idle')){
       this.player.setTexture('rumi').setVisible(false).setAlpha(1);this.player.body.setSize(34,72,true);
       this.rumiVisual=this.add.image(this.player.x,this.player.y,'rumi_idle').setDepth(20).setOrigin(.5,1);setRumiPose(this,'idle');
       this.rumiAura=this.add.ellipse(this.player.x,this.player.y,86,102,0x9e78ff,.025).setDepth(16).setStrokeStyle(2,0xe8dcff,.07);syncRumiVisual(this,this.time.now);
     }
-    // Pull HUD anchors toward the middle too so the stronger camera zoom doesn't crop them.
-    if(this.healthText)this.healthText.setFontSize(14).setPosition(270,58);
-    if(this.healthBar){this.healthBar.setPosition(165,58);this.healthBar.height=16;}
-    if(this.syncText)this.syncText.setFontSize(12).setPosition(545,92);
-    if(this.syncBar){this.syncBar.setPosition(405,92);this.syncBar.height=13;}
-    if(this.styleText)this.styleText.setPosition(1010,56).setFontSize(13);
-    if(this.upgradeText)this.upgradeText.setPosition(1010,82).setFontSize(10);
+
+    // TouchControls already has its own zoom compensation. Apply the same principle to HUD.
+    layoutHUDForZoom(this);
   };
 
   GameScene.prototype.spawnEnemy=function(type,x,y){const e=originalSpawnEnemy.call(this,type,x,y),key=type==='boss'?'enemy_boss':type==='brute'?'enemy_brute':type==='ranged'?'enemy_ranged':'enemy_grunt';if(this.textures.exists(key)){e.setAlpha(.001);e.visual=this.add.image(e.x,e.y,key).setDepth(18);const s=type==='boss'?1.22:type==='brute'?1.12:1.06;e.visual.setScale(s);e.visual.baseScale=s;}return e;};
