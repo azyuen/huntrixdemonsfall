@@ -41,12 +41,13 @@ export default class TouchControls {
       return node;
     };
 
-    // Compact diamond cluster, pulled well toward the centre of the phone.
-    // Sync is intentionally inside the cluster and fully reachable.
-    this.attackNode=makeButton(w-350,h-165,'ATTACK',()=>this.attack=true,{r:41,icon:'⚔'});
-    this.jumpNode=makeButton(w-450,h-155,'JUMP',()=>this.jump=true,{r:39,icon:'↑'});
-    this.dodgeNode=makeButton(w-350,h-265,'DODGE',()=>this.dodge=true,{r:39,icon:'➜'});
-    this.syncNode=makeButton(w-250,h-185,'SYNC\nATTACK',()=>this.sync=true,{r:48,accent:0xffba31,glow:true,icon:'✦'});
+    // Ergonomic mobile layout: the three frequent actions form a widely-spaced bottom
+    // row, while Sync sits above Attack on the right where it is visible but less likely
+    // to be hit accidentally.
+    this.dodgeNode=makeButton(w-500,h-155,'DODGE',()=>this.dodge=true,{r:39,icon:'➜'});
+    this.jumpNode=makeButton(w-390,h-155,'JUMP',()=>this.jump=true,{r:39,icon:'↑'});
+    this.attackNode=makeButton(w-280,h-155,'ATTACK',()=>this.attack=true,{r:41,icon:'⚔'});
+    this.syncNode=makeButton(w-280,h-280,'SYNC\nATTACK',()=>this.sync=true,{r:48,accent:0xffba31,glow:true,icon:'✦'});
 
     this.base.on('pointerdown',p=>{
       if(this.joystickPointerId===null)this.joystickPointerId=p.id;
