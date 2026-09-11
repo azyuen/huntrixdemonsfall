@@ -41,12 +41,12 @@ export default class TouchControls {
       return node;
     };
 
-    // Compact diamond cluster, deliberately well inside the right edge.
-    // Sync now sits fully on-screen rather than hanging off the bezel.
-    this.attackNode=makeButton(w-290,h-165,'ATTACK',()=>this.attack=true,{r:41,icon:'⚔'});
-    this.jumpNode=makeButton(w-390,h-155,'JUMP',()=>this.jump=true,{r:39,icon:'↑'});
-    this.dodgeNode=makeButton(w-290,h-265,'DODGE',()=>this.dodge=true,{r:39,icon:'➜'});
-    this.syncNode=makeButton(w-190,h-185,'SYNC\nATTACK',()=>this.sync=true,{r:48,accent:0xffba31,glow:true,icon:'✦'});
+    // Compact diamond cluster, pulled well toward the centre of the phone.
+    // Sync is intentionally inside the cluster and fully reachable.
+    this.attackNode=makeButton(w-350,h-165,'ATTACK',()=>this.attack=true,{r:41,icon:'⚔'});
+    this.jumpNode=makeButton(w-450,h-155,'JUMP',()=>this.jump=true,{r:39,icon:'↑'});
+    this.dodgeNode=makeButton(w-350,h-265,'DODGE',()=>this.dodge=true,{r:39,icon:'➜'});
+    this.syncNode=makeButton(w-250,h-185,'SYNC\nATTACK',()=>this.sync=true,{r:48,accent:0xffba31,glow:true,icon:'✦'});
 
     this.base.on('pointerdown',p=>{
       if(this.joystickPointerId===null)this.joystickPointerId=p.id;
@@ -59,15 +59,16 @@ export default class TouchControls {
       if(p.id===this.joystickPointerId)this.reset();
     });
     scene.input.on('gameout',()=>this.reset());
+
+    // VisualArtPatch applies gameplay zoom after GameScene.create() returns.
+    // Run on the next tick so we pick up the final camera zoom automatically.
+    scene.time.delayedCall(0,()=>this.layoutForZoom(scene.cameras.main.zoom||1));
   }
 
   worldFromScreen(screenX,screenY,zoom){
     const cx=this.scene.scale.width/2;
     const cy=this.scene.scale.height/2;
-    return {
-      x:cx+(screenX-cx)/zoom,
-      y:cy+(screenY-cy)/zoom
-    };
+    return {x:cx+(screenX-cx)/zoom,y:cy+(screenY-cy)/zoom};
   }
 
   layoutForZoom(zoom=1){
@@ -76,8 +77,7 @@ export default class TouchControls {
 
     const joy=this.worldFromScreen(this.joyScreenX,this.joyScreenY,zoom);
     this.centerX=joy.x; this.centerY=joy.y;
-    this.base.setPosition(joy.x,joy.y).setScale(inv);
-    this.base._uiScale=inv;
+    this.base.setPosition(joy.x,joy.y).setScale(inv); this.base._uiScale=inv;
     this.knob.setPosition(joy.x,joy.y).setScale(inv);
 
     const lc=this.worldFromScreen(this.joyScreenX-42,this.joyScreenY,zoom);
@@ -88,7 +88,7 @@ export default class TouchControls {
     this.nodes.forEach(node=>{
       const p=this.worldFromScreen(node.screenX,node.screenY,zoom);
       node.circle.setPosition(p.x,p.y).setScale(inv); node.circle._uiScale=inv;
-      if(node.halo){node.halo.setPosition(p.x,p.y);node.halo.setScale(inv);}
+      if(node.halo){node.halo.setPosition(p.x,p.y).setScale(inv);}
       if(node.iconText){node.iconText.setPosition(p.x,p.y-8/zoom).setScale(inv);}
       node.labelText.setPosition(p.x,p.y+(node.iconText?18/zoom:0)).setScale(inv);
     });
@@ -101,8 +101,6 @@ export default class TouchControls {
     const px=p.position?.x ?? p.x;
     const dx=Phaser.Math.Clamp(px-this.joyScreenX,-48,48);
     this.axis=Math.abs(dx)<9?0:dx/48;
-
-    // Convert the desired screen displacement back into the zoomed object's coordinates.
     this.knob.x=this.centerX+dx/this.uiZoom;
   }
 
