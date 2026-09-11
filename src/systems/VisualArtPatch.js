@@ -29,19 +29,12 @@ export function installVisualArt(GameScene){
     const grounded=body.blocked.down||body.touching.down;
     const dodging=time<=scene.dodgeInvulnerableUntil;
 
-    if(dodging){
-      setRumiPose(scene,'dodge');
-    }else if(scene.isAttacking||time<scene._rumiAttackLockUntil){
-      // Preserve the selected attack pose through the active attack window.
-    }else if(!grounded){
-      setRumiPose(scene,Math.abs(body.velocity.x)>240?'aerial':'jump');
-    }else if(Math.abs(body.velocity.x)>45){
-      setRumiPose(scene,'run');
-    }else{
-      setRumiPose(scene,'idle');
-    }
+    if(dodging)setRumiPose(scene,'dodge');
+    else if(scene.isAttacking||time<scene._rumiAttackLockUntil){}
+    else if(!grounded)setRumiPose(scene,Math.abs(body.velocity.x)>240?'aerial':'jump');
+    else if(Math.abs(body.velocity.x)>45)setRumiPose(scene,'run');
+    else setRumiPose(scene,'idle');
 
-    // The physics body is the source of truth. Artwork is anchored to its feet.
     scene.rumiVisual.setPosition(body.center.x,body.bottom+4).setFlipX(scene.lastFacing<0);
 
     if(dodging){
@@ -73,31 +66,52 @@ export function installVisualArt(GameScene){
     if(finisher)scene.cameras.main.shake(120,.004);
   };
 
+  const buildSkyline=scene=>{
+    const W=scene.scale.width,H=scene.scale.height;
+    scene.add.rectangle(W/2,H/2,W,H,0x09051a,1).setScrollFactor(0).setDepth(-120);
+    scene.add.rectangle(W/2,170,W,340,0x151544,1).setScrollFactor(0).setDepth(-119);
+    scene.add.rectangle(W/2,285,W,230,0x1d2452,.72).setScrollFactor(0).setDepth(-118);
+
+    // moon + halo
+    scene.add.circle(W*.82,128,104,0x6070ff,.12).setScrollFactor(0).setDepth(-117);
+    scene.add.circle(W*.82,128,72,0xe9e9ff,.92).setScrollFactor(0).setDepth(-116);
+    scene.add.circle(W*.80,108,13,0xc5c7e5,.18).setScrollFactor(0).setDepth(-115);
+    scene.add.circle(W*.845,145,19,0xc5c7e5,.13).setScrollFactor(0).setDepth(-115);
+
+    // distant city layer
+    const far=[[-40,360,160,260],[105,370,110,220],[205,350,150,285],[345,382,105,205],[435,335,170,320],[590,375,125,230],[700,345,145,290],[835,390,110,190],[930,350,160,280],[1080,385,115,210],[1170,335,150,315],[1315,375,120,235],[1415,350,155,280],[1545,390,100,195]];
+    far.forEach(([x,y,w,h],i)=>{
+      const b=scene.add.rectangle(x+w/2,y-h/2,w,h,i%3===0?0x191a3c:0x20214a,.96).setScrollFactor(0).setDepth(-114);
+      for(let wx=x+18;wx<x+w-10;wx+=28){
+        for(let wy=y-h+28;wy<y-18;wy+=34){
+          if(((wx+wy+i*17)%5)<1.8){
+            scene.add.rectangle(wx,wy,5,8,((wx+wy)%3===0)?0xffca73:0x7fc9ff,.28).setScrollFactor(0).setDepth(-113);
+          }
+        }
+      }
+    });
+
+    // nearer rooftop silhouettes
+    const near=[[-50,440,260,150],[175,455,195,125],[345,425,260,180],[585,465,170,115],[730,420,240,185],[955,450,190,140],[1125,410,255,200],[1360,452,220,135]];
+    near.forEach(([x,y,w,h],i)=>{
+      scene.add.rectangle(x+w/2,y-h/2,w,h,i%2?0x11152d:0x101329,1).setScrollFactor(0).setDepth(-112);
+      if(i===2||i===5)scene.add.rectangle(x+w*.68,y-h-18,8,36,0x8f61b7,.55).setScrollFactor(0).setDepth(-111);
+    });
+
+    // Namsan-style tower silhouette on right
+    scene.add.rectangle(W*.91,250,8,150,0x202143,.95).setScrollFactor(0).setDepth(-111);
+    scene.add.triangle(W*.91,160,W*.89,205,W*.93,205,W*.91,145,0x2e315d,.95).setScrollFactor(0).setDepth(-111);
+    scene.add.rectangle(W*.91,188,34,4,0xc94cff,.7).setScrollFactor(0).setDepth(-110);
+
+    scene.add.rectangle(W/2,485,W,150,0x09051a,.60).setScrollFactor(0).setDepth(-109);
+  };
+
   GameScene.prototype.create=function(...args){
     originalCreate.apply(this,args);
 
-    // Remove all old procedural skyline pieces.
+    // Remove every legacy background layer, including the old skyline image.
     this.children.list.slice().forEach(obj=>{if(obj!==this.player&&obj.depth<0)obj.destroy();});
-
-    // Full dark base so there is never an unpainted/grey WebGL clear area.
-    this.backdropBase=this.add.rectangle(this.scale.width/2,this.scale.height/2,this.scale.width,this.scale.height,0x09051a,1)
-      .setScrollFactor(0).setDepth(-120);
-
-    if(this.textures.exists('seoulSky')){
-      // The source image has a large flat grey lower section baked into it.
-      // Crop to the illustrated top 36% only, then scale that crop behind the level.
-      this.backdrop=this.add.image(this.scale.width/2,275,'seoulSky').setScrollFactor(0).setDepth(-110);
-      const sourceW=this.backdrop.width;
-      const sourceH=this.backdrop.height;
-      const cropH=Math.max(1,Math.floor(sourceH*.36));
-      this.backdrop.setCrop(0,0,sourceW,cropH);
-      this.backdrop.setDisplaySize(this.scale.width,550);
-      this.backdrop.setTint(0xe7e8ff);
-
-      // Subtle atmospheric fade into the dark rooftop foreground.
-      this.add.rectangle(this.scale.width/2,450,this.scale.width,220,0x100b26,.18).setScrollFactor(0).setDepth(-106);
-      this.add.rectangle(this.scale.width/2,540,this.scale.width,150,0x09051a,.34).setScrollFactor(0).setDepth(-105);
-    }
+    buildSkyline(this);
 
     this.platforms?.getChildren().forEach((p,i)=>{
       p.setFillStyle?.(i%3===0?0x111426:0x17172b,1);
@@ -110,7 +124,6 @@ export function installVisualArt(GameScene){
     this._rumiAttackLockUntil=0;
 
     if(this.characterId==='rumi'&&this.textures.exists('rumi_idle')){
-      // Invisible controller + separate visible art keeps physics and pose swaps independent.
       this.player.setTexture('rumi').setVisible(false).setAlpha(1);
       this.player.body.setSize(34,72,true);
       this.rumiVisual=this.add.image(this.player.x,this.player.y,'rumi_idle').setDepth(20).setOrigin(.5,1);
