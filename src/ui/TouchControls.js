@@ -1,6 +1,7 @@
 export default class TouchControls {
   constructor(scene){
     this.scene=scene; this.axis=0; this.jump=false; this.dodge=false; this.attack=false;
+    this.joystickPointerId=null;
     const h=scene.scale.height;
     const w=scene.scale.width;
 
@@ -27,12 +28,19 @@ export default class TouchControls {
     bind(w-rightInset-gap,'JUMP',()=>this.jump=true);
     bind(w-rightInset-gap*2,'DODGE',()=>this.dodge=true);
 
-    this.base.on('pointerdown',p=>this.moveStick(p));
-    this.base.on('pointermove',p=>{if(p.isDown)this.moveStick(p)});
+    this.base.on('pointerdown',p=>{
+      if(this.joystickPointerId===null)this.joystickPointerId=p.id;
+      if(p.id===this.joystickPointerId)this.moveStick(p);
+    });
+    this.base.on('pointermove',p=>{
+      if(p.id===this.joystickPointerId && p.isDown)this.moveStick(p);
+    });
 
-    // Reset from anywhere on release so the stick always snaps home,
-    // even if the thumb leaves the joystick before lifting.
-    scene.input.on('pointerup',()=>this.reset());
+    // Only release the joystick when the SAME finger that owns it lifts.
+    // Releasing Jump / Attack / Dodge must not snap the stick back.
+    scene.input.on('pointerup',p=>{
+      if(p.id===this.joystickPointerId)this.reset();
+    });
     scene.input.on('gameout',()=>this.reset());
   }
 
@@ -45,6 +53,7 @@ export default class TouchControls {
   reset(){
     this.axis=0;
     this.knob.x=this.centerX;
+    this.joystickPointerId=null;
   }
 
   consume(name){const v=this[name];this[name]=false;return v;}
