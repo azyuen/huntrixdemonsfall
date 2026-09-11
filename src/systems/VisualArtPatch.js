@@ -9,10 +9,13 @@ export function installVisualArt(GameScene){
   const originalPerformAttack=GameScene.prototype.performAttack;
 
   const rumiKey=name=>`rumi_${name}`;
+  const sizes={idle:[154,118],run:[194,110],jump:[204,118],attack1:[204,112],attack2:[210,112],finisher:[300,106],aerial:[274,96],dodge:[220,100]};
   const setRumiPose=(scene,name)=>{
     const key=rumiKey(name);
     if(scene.characterId!=='rumi'||!scene.textures.exists(key))return false;
     if(scene.player.texture.key!==key)scene.player.setTexture(key);
+    const [w,h]=sizes[name]||sizes.idle;
+    scene.player.setDisplaySize(w,h).setOrigin(.5,.84).setVisible(true).setAlpha(1).setBlendMode(Phaser.BlendModes.NORMAL);
     scene.rumiPose=name;
     return true;
   };
@@ -22,13 +25,13 @@ export function installVisualArt(GameScene){
     if(!key?.startsWith('rumi_'))return;
     const ghost=scene.add.image(scene.player.x,scene.player.y,key)
       .setDisplaySize(scene.player.displayWidth,scene.player.displayHeight)
-      .setFlipX(scene.player.flipX).setAngle(scene.player.angle)
+      .setOrigin(.5,.84).setFlipX(scene.player.flipX).setAngle(scene.player.angle)
       .setAlpha(alpha).setTint(0xb8a7ff).setDepth(17);
     scene.tweens.add({targets:ghost,alpha:0,scaleX:ghost.scaleX*1.06,scaleY:ghost.scaleY*.96,duration:180,onComplete:()=>ghost.destroy()});
   };
   const attackSpark=(scene,finisher=false)=>{
-    const dir=scene.lastFacing||1,x=scene.player.x+dir*(finisher?125:95),y=scene.player.y-8;
-    const ring=scene.add.circle(x,y,finisher?25:16,0xffffff,.08).setDepth(32).setStrokeStyle(finisher?7:4,finisher?0xffd968:0xd8c8ff,.95);
+    const dir=scene.lastFacing||1,x=scene.player.x+dir*(finisher?135:105),y=scene.player.y-10;
+    const ring=scene.add.circle(x,y,finisher?28:18,0xffffff,.08).setDepth(32).setStrokeStyle(finisher?7:4,finisher?0xffd968:0xd8c8ff,.95);
     scene.tweens.add({targets:ring,scale:finisher?3.4:2.3,alpha:0,duration:finisher?310:190,onComplete:()=>ring.destroy()});
     if(finisher)scene.cameras.main.shake(120,.004);
   };
@@ -53,10 +56,11 @@ export function installVisualArt(GameScene){
     this.player.setDepth(20).setVisible(true).setAlpha(1).clearTint();
 
     if(this.characterId==='rumi'&&this.textures.exists('rumi_idle')){
-      this.player.setTexture('rumi_idle').setDisplaySize(78,60).setOrigin(.5,.82).setBlendMode(Phaser.BlendModes.NORMAL).setVisible(true).setAlpha(1);
-      this.player.body.setSize(30,50,true);
-      this.player.body.setOffset(24,7);
       setRumiPose(this,'idle');
+      this.player.body.setSize(34,72,true);
+      this.player.body.setOffset(60,28);
+      // A faint aura makes her readable against the skyline without becoming a placeholder block.
+      this.rumiAura=this.add.ellipse(this.player.x,this.player.y+8,92,112,0x9e78ff,.08).setDepth(16).setStrokeStyle(2,0xe8dcff,.18);
     }else{
       this.player.setTexture(this.characterId);
       this.player.setDisplaySize(this.characterId==='mira'?86:74,this.characterId==='mira'?112:94);
@@ -73,8 +77,6 @@ export function installVisualArt(GameScene){
     originalPerformAttack.call(this,time);
     const pose=this.comboStep===0?'attack1':this.comboStep===1?'attack2':'finisher';
     if(setRumiPose(this,pose)){
-      const dims=pose==='finisher'?[172,61]:pose==='attack2'?[105,56]:[102,56];
-      this.player.setDisplaySize(...dims).setOrigin(.5,.82).setVisible(true).setAlpha(1);
       this._rumiAttackLockUntil=time+(this.hunter.attackDuration[this.comboStep]||260);
       this.player.setAngle(this.comboStep===2?0:this.lastFacing*-.8);
       attackSpark(this,this.comboStep===2);makeAfterImage(this,this.comboStep===2?.34:.2);
@@ -95,16 +97,17 @@ export function installVisualArt(GameScene){
     if(time>this._nextPetal){this._nextPetal=time+Phaser.Math.Between(650,1100);const cam=this.cameras.main,px=cam.scrollX+cam.width+30,py=Phaser.Math.Between(120,500);const petal=this.add.ellipse(px,py,9,4,0xffa7cf,.5).setDepth(10);this.tweens.add({targets:petal,x:px-Phaser.Math.Between(240,390),y:py+Phaser.Math.Between(30,90),angle:180,alpha:0,duration:Phaser.Math.Between(1800,2500),onComplete:()=>petal.destroy()});}
     if(this.player?.active){
       this.player.setFlipX(this.lastFacing<0);const grounded=this.player.body.blocked.down||this.player.body.touching.down;
-      if(this.characterId==='rumi')this.player.setBlendMode(Phaser.BlendModes.NORMAL).setVisible(true);
-      if(grounded&&!this._wasGrounded&&this.characterId==='rumi'){const dust=this.add.ellipse(this.player.x,this.player.y+31,58,12,0xc7b5d9,.18).setDepth(15);this.tweens.add({targets:dust,scaleX:1.45,alpha:0,duration:200,onComplete:()=>dust.destroy()});}
+      if(this.rumiAura){this.rumiAura.setPosition(this.player.x,this.player.y+8);this.rumiAura.setAlpha(this.isAttacking?.14:.07);}
+      if(this.characterId==='rumi')this.player.setBlendMode(Phaser.BlendModes.NORMAL).setVisible(true).setAlpha(1);
+      if(grounded&&!this._wasGrounded&&this.characterId==='rumi'){const dust=this.add.ellipse(this.player.x,this.player.y+39,72,15,0xc7b5d9,.20).setDepth(15);this.tweens.add({targets:dust,scaleX:1.45,alpha:0,duration:200,onComplete:()=>dust.destroy()});}
       this._wasGrounded=grounded;
       if(this.characterId==='rumi'&&this.textures.exists('rumi_idle')){
         const dodging=this.player.alpha<.8;
-        if(dodging){if(setRumiPose(this,'dodge'))this.player.setDisplaySize(117,53).setOrigin(.5,.82);this.player.setAngle(this.lastFacing*3);if(time-this._lastRumiGhost>55){makeAfterImage(this,.22);this._lastRumiGhost=time;}}
+        if(dodging){setRumiPose(this,'dodge');this.player.setAngle(this.lastFacing*3);if(time-this._lastRumiGhost>55){makeAfterImage(this,.22);this._lastRumiGhost=time;}}
         else if(this.isAttacking||time<this._rumiAttackLockUntil){}
-        else if(!grounded){const pose=Math.abs(this.player.body.velocity.x)>240?'aerial':'jump';if(setRumiPose(this,pose))this.player.setDisplaySize(pose==='aerial'?157:102,pose==='aerial'?55:59).setOrigin(.5,.82);this.player.setAngle(Phaser.Math.Clamp(this.player.body.velocityY/220,-4,5));}
-        else if(Math.abs(this.player.body.velocity.x)>45){if(setRumiPose(this,'run'))this.player.setDisplaySize(97,55).setOrigin(.5,.82);this.player.setAngle(Math.sin(time/105)*1.1);}
-        else{if(setRumiPose(this,'idle'))this.player.setDisplaySize(77,59).setOrigin(.5,.82);this.player.setAngle(Math.sin(time/500)*.35);}
+        else if(!grounded){const pose=Math.abs(this.player.body.velocity.x)>240?'aerial':'jump';setRumiPose(this,pose);this.player.setAngle(Phaser.Math.Clamp(this.player.body.velocityY/220,-4,5));}
+        else if(Math.abs(this.player.body.velocity.x)>45){setRumiPose(this,'run');this.player.setAngle(Math.sin(time/105)*1.1);}
+        else{setRumiPose(this,'idle');this.player.setAngle(Math.sin(time/500)*.35);}
       }
     }
     if(this.enemies)this.enemies.getChildren().forEach(e=>{if(!e.visual?.active)return;e.visual.setPosition(e.x,e.y).setFlipX(this.player.x<e.x);const base=e.visual.baseScale||1,motion=Math.abs(e.body?.velocity?.x||0)>5?Math.sin(time/120+e.x*.01)*.025:0;e.visual.setScale(base*(1+motion),base*(1-motion*.5));e.visual.setAlpha(e.type==='boss'&&!this.bossActive&&!this.bossDefeated?.72:1);});
