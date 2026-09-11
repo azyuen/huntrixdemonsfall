@@ -10,7 +10,7 @@ export function installVisualArt(GameScene){
 
   const rumiKey=name=>`rumi_${name}`;
   const sourceSizes={idle:[77,59],run:[97,55],jump:[102,59],attack1:[102,56],attack2:[105,56],finisher:[172,61],aerial:[157,55],dodge:[117,53]};
-  const scale=1.62;
+  const scale=1.82;
 
   const setRumiPose=(scene,name)=>{
     if(scene.characterId!=='rumi'||!scene.rumiVisual)return false;
@@ -28,95 +28,119 @@ export function installVisualArt(GameScene){
     const body=scene.player.body;
     const grounded=body.blocked.down||body.touching.down;
     const dodging=time<=scene.dodgeInvulnerableUntil;
-
     if(dodging)setRumiPose(scene,'dodge');
     else if(scene.isAttacking||time<scene._rumiAttackLockUntil){}
     else if(!grounded)setRumiPose(scene,Math.abs(body.velocity.x)>240?'aerial':'jump');
     else if(Math.abs(body.velocity.x)>45)setRumiPose(scene,'run');
     else setRumiPose(scene,'idle');
 
-    scene.rumiVisual.setPosition(body.center.x,body.bottom+4).setFlipX(scene.lastFacing<0);
-
+    scene.rumiVisual.setPosition(body.center.x,body.bottom+5).setFlipX(scene.lastFacing<0);
     if(dodging){
-      scene.rumiVisual.setAlpha(.72).setAngle((scene.lastFacing||1)*2.5);
-      if(time-scene._lastRumiGhost>65){
+      scene.rumiVisual.setAlpha(.76).setAngle((scene.lastFacing||1)*2.5);
+      if(time-scene._lastRumiGhost>70){
         const ghost=scene.add.image(scene.rumiVisual.x,scene.rumiVisual.y,scene.rumiVisual.texture.key)
-          .setDisplaySize(scene.rumiVisual.displayWidth,scene.rumiVisual.displayHeight)
-          .setOrigin(.5,1).setFlipX(scene.rumiVisual.flipX).setAlpha(.20).setTint(0xb8a7ff).setDepth(17);
-        scene.tweens.add({targets:ghost,alpha:0,x:ghost.x-(scene.lastFacing||1)*22,duration:170,onComplete:()=>ghost.destroy()});
+          .setDisplaySize(scene.rumiVisual.displayWidth,scene.rumiVisual.displayHeight).setOrigin(.5,1)
+          .setFlipX(scene.rumiVisual.flipX).setAlpha(.20).setTint(0xc5b5ff).setDepth(17);
+        scene.tweens.add({targets:ghost,alpha:0,x:ghost.x-(scene.lastFacing||1)*24,duration:180,onComplete:()=>ghost.destroy()});
         scene._lastRumiGhost=time;
       }
     }else{
       scene.rumiVisual.setAlpha(1);
-      if(scene.rumiPose==='run')scene.rumiVisual.setAngle(Math.sin(time/125)*.6);
-      else if(scene.rumiPose==='jump'||scene.rumiPose==='aerial')scene.rumiVisual.setAngle(Phaser.Math.Clamp(body.velocity.y/300,-2.2,2.8));
+      if(scene.rumiPose==='run')scene.rumiVisual.setAngle(Math.sin(time/125)*.55);
+      else if(scene.rumiPose==='jump'||scene.rumiPose==='aerial')scene.rumiVisual.setAngle(Phaser.Math.Clamp(body.velocity.y/320,-2,2.5));
       else scene.rumiVisual.setAngle(0);
     }
-
     if(scene.rumiAura){
-      scene.rumiAura.setPosition(body.center.x,body.bottom-40);
-      scene.rumiAura.setAlpha(scene.isAttacking?.10:.035);
+      scene.rumiAura.setPosition(body.center.x,body.bottom-44);
+      scene.rumiAura.setAlpha(scene.isAttacking?.09:.028);
     }
   };
 
   const attackSpark=(scene,finisher=false)=>{
-    const dir=scene.lastFacing||1,x=scene.player.x+dir*(finisher?135:105),y=scene.player.y-10;
-    const ring=scene.add.circle(x,y,finisher?28:18,0xffffff,.08).setDepth(32).setStrokeStyle(finisher?7:4,finisher?0xffd968:0xd8c8ff,.95);
-    scene.tweens.add({targets:ring,scale:finisher?3.4:2.3,alpha:0,duration:finisher?310:190,onComplete:()=>ring.destroy()});
+    const dir=scene.lastFacing||1,x=scene.player.x+dir*(finisher?150:112),y=scene.player.y-10;
+    const ring=scene.add.circle(x,y,finisher?30:18,0xffffff,.08).setDepth(32)
+      .setStrokeStyle(finisher?7:4,finisher?0xffd968:0xc9b8ff,.95);
+    scene.tweens.add({targets:ring,scale:finisher?3.5:2.4,alpha:0,duration:finisher?320:190,onComplete:()=>ring.destroy()});
     if(finisher)scene.cameras.main.shake(120,.004);
   };
 
   const buildSkyline=scene=>{
     const W=scene.scale.width,H=scene.scale.height;
-    scene.add.rectangle(W/2,H/2,W,H,0x09051a,1).setScrollFactor(0).setDepth(-120);
-    scene.add.rectangle(W/2,170,W,340,0x151544,1).setScrollFactor(0).setDepth(-119);
-    scene.add.rectangle(W/2,285,W,230,0x1d2452,.72).setScrollFactor(0).setDepth(-118);
+    scene.add.rectangle(W/2,H/2,W,H,0x080b1d,1).setScrollFactor(0).setDepth(-130);
+    scene.add.rectangle(W/2,200,W,400,0x17275c,1).setScrollFactor(0).setDepth(-129);
+    scene.add.rectangle(W/2,300,W,230,0x37205d,.50).setScrollFactor(0).setDepth(-128);
 
-    // moon + halo
-    scene.add.circle(W*.82,128,104,0x6070ff,.12).setScrollFactor(0).setDepth(-117);
-    scene.add.circle(W*.82,128,72,0xe9e9ff,.92).setScrollFactor(0).setDepth(-116);
-    scene.add.circle(W*.80,108,13,0xc5c7e5,.18).setScrollFactor(0).setDepth(-115);
-    scene.add.circle(W*.845,145,19,0xc5c7e5,.13).setScrollFactor(0).setDepth(-115);
+    // soft atmospheric bands
+    for(let i=0;i<4;i++)scene.add.ellipse(W*.58+i*120,245+i*18,560,150,0x7b4fa0,.035).setScrollFactor(0).setDepth(-127);
 
-    // distant city layer
-    const far=[[-40,360,160,260],[105,370,110,220],[205,350,150,285],[345,382,105,205],[435,335,170,320],[590,375,125,230],[700,345,145,290],[835,390,110,190],[930,350,160,280],[1080,385,115,210],[1170,335,150,315],[1315,375,120,235],[1415,350,155,280],[1545,390,100,195]];
-    far.forEach(([x,y,w,h],i)=>{
-      const b=scene.add.rectangle(x+w/2,y-h/2,w,h,i%3===0?0x191a3c:0x20214a,.96).setScrollFactor(0).setDepth(-114);
-      for(let wx=x+18;wx<x+w-10;wx+=28){
-        for(let wy=y-h+28;wy<y-18;wy+=34){
-          if(((wx+wy+i*17)%5)<1.8){
-            scene.add.rectangle(wx,wy,5,8,((wx+wy)%3===0)?0xffca73:0x7fc9ff,.28).setScrollFactor(0).setDepth(-113);
-          }
+    // bright moon with halo
+    scene.add.circle(W*.75,108,118,0x8390ff,.11).setScrollFactor(0).setDepth(-126);
+    scene.add.circle(W*.75,108,76,0xf2f3ff,.96).setScrollFactor(0).setDepth(-125);
+    scene.add.circle(W*.728,92,17,0xbec5e5,.15).setScrollFactor(0).setDepth(-124);
+    scene.add.circle(W*.775,130,21,0xbec5e5,.13).setScrollFactor(0).setDepth(-124);
+
+    const makeBuilding=(x,base,w,h,color,depth,windowColor=0xff8ad9)=>{
+      scene.add.rectangle(x+w/2,base-h/2,w,h,color,1).setScrollFactor(0).setDepth(depth);
+      scene.add.rectangle(x+w*.16,base-h-6,w*.68,7,0x222750,.8).setScrollFactor(0).setDepth(depth+1);
+      for(let wx=x+18;wx<x+w-10;wx+=24){
+        for(let wy=base-h+24;wy<base-14;wy+=28){
+          const seed=(wx*3+wy*7)%11;
+          if(seed<5)scene.add.rectangle(wx,wy,5,8,seed%2?windowColor:0x84c6ff,.44).setScrollFactor(0).setDepth(depth+1);
         }
+      }
+    };
+
+    const far=[[-20,410,145,245],[105,420,100,205],[190,390,135,280],[315,430,100,175],[405,365,145,300],[545,420,110,205],[650,385,130,260],[785,425,95,170],[870,390,150,250],[1020,425,110,185],[1130,365,145,300],[1270,415,110,215],[1380,380,150,270],[1525,425,95,170]];
+    far.forEach(([x,b,w,h],i)=>makeBuilding(x,b,w,h,i%2?0x25264f:0x1f2148,-123,i%3===0?0xff9acb:0xffc97a));
+
+    // nearer layer with rooftop details
+    const near=[[-60,505,250,150],[150,515,190,125],[325,475,250,180],[560,520,170,115],[720,470,235,185],[940,510,180,140],[1110,460,245,195],[1345,510,220,135]];
+    near.forEach(([x,b,w,h],i)=>{
+      scene.add.rectangle(x+w/2,b-h/2,w,h,i%2?0x11162f:0x0e1429,1).setScrollFactor(0).setDepth(-121);
+      if(i===1||i===4||i===6){
+        scene.add.rectangle(x+w*.35,b-h-18,42,28,0x1e2440,1).setScrollFactor(0).setDepth(-120);
+        scene.add.circle(x+w*.35,b-h-18,8,0xff4fd8,.18).setScrollFactor(0).setDepth(-119);
       }
     });
 
-    // nearer rooftop silhouettes
-    const near=[[-50,440,260,150],[175,455,195,125],[345,425,260,180],[585,465,170,115],[730,420,240,185],[955,450,190,140],[1125,410,255,200],[1360,452,220,135]];
-    near.forEach(([x,y,w,h],i)=>{
-      scene.add.rectangle(x+w/2,y-h/2,w,h,i%2?0x11152d:0x101329,1).setScrollFactor(0).setDepth(-112);
-      if(i===2||i===5)scene.add.rectangle(x+w*.68,y-h-18,8,36,0x8f61b7,.55).setScrollFactor(0).setDepth(-111);
-    });
+    // neon sign panel on the left, inspired by the reference composition
+    scene.add.rectangle(95,330,104,260,0x1a1530,.88).setScrollFactor(0).setDepth(-118).setStrokeStyle(2,0xff4bc5,.24);
+    scene.add.text(95,328,'또\n다시\n빛날\n우리\n♡',{fontFamily:'system-ui',fontSize:'24px',fontStyle:'bold',color:'#ff75d0',align:'center',lineSpacing:7})
+      .setOrigin(.5).setScrollFactor(0).setDepth(-117).setShadow(0,0,'#ff2db7',12,true,true);
 
-    // Namsan-style tower silhouette on right
-    scene.add.rectangle(W*.91,250,8,150,0x202143,.95).setScrollFactor(0).setDepth(-111);
-    scene.add.triangle(W*.91,160,W*.89,205,W*.93,205,W*.91,145,0x2e315d,.95).setScrollFactor(0).setDepth(-111);
-    scene.add.rectangle(W*.91,188,34,4,0xc94cff,.7).setScrollFactor(0).setDepth(-110);
+    // Namsan tower silhouette and neon ring
+    scene.add.rectangle(W*.86,252,9,170,0x24284f,.98).setScrollFactor(0).setDepth(-120);
+    scene.add.triangle(W*.86,154,W*.835,222,W*.885,222,W*.86,140,0x303764,.98).setScrollFactor(0).setDepth(-120);
+    scene.add.rectangle(W*.86,187,40,5,0x58e8ff,.95).setScrollFactor(0).setDepth(-119);
+    scene.add.rectangle(W*.86,194,32,4,0xff55d8,.95).setScrollFactor(0).setDepth(-119);
 
-    scene.add.rectangle(W/2,485,W,150,0x09051a,.60).setScrollFactor(0).setDepth(-109);
+    // cherry blossom branches and petals, kept away from controls
+    scene.add.rectangle(12,300,18,310,0x211426,.88).setScrollFactor(0).setDepth(-116).setAngle(-8);
+    for(let i=0;i<20;i++)scene.add.circle(20+Phaser.Math.Between(0,120),170+Phaser.Math.Between(0,250),Phaser.Math.Between(3,7),0xff83bf,.48).setScrollFactor(0).setDepth(-115);
+
+    // dark foreground band creates rooftop depth rather than an empty black void
+    scene.add.rectangle(W/2,575,W,290,0x080b18,.92).setScrollFactor(0).setDepth(-114);
+    scene.add.rectangle(W/2,548,W,6,0x6f4f85,.40).setScrollFactor(0).setDepth(-113);
   };
 
   GameScene.prototype.create=function(...args){
     originalCreate.apply(this,args);
-
-    // Remove every legacy background layer, including the old skyline image.
     this.children.list.slice().forEach(obj=>{if(obj!==this.player&&obj.depth<0)obj.destroy();});
     buildSkyline(this);
 
+    // Slightly tighter gameplay framing inspired by the reference screenshot.
+    this.cameras.main.setZoom(1.12);
+    this.cameras.main.startFollow(this.player,true,.10,.10,180,10);
+
     this.platforms?.getChildren().forEach((p,i)=>{
-      p.setFillStyle?.(i%3===0?0x111426:0x17172b,1);
-      p.setStrokeStyle?.(2,0x66577b,.82);
-      this.add.rectangle(p.x,p.y-p.height/2+3,Math.max(12,p.width-8),6,0x866c8e,.82).setDepth(3);
+      p.setFillStyle?.(i%3===0?0x111326:0x15152a,1);
+      p.setStrokeStyle?.(2,0x8c719b,.82);
+      this.add.rectangle(p.x,p.y-p.height/2+3,Math.max(12,p.width-8),7,0xa383ad,.76).setDepth(3);
+      if(i%2===0){
+        const unit=this.add.rectangle(p.x-p.width*.28,p.y-p.height/2-22,54,34,0x191c30,.96).setDepth(4).setStrokeStyle(2,0x5f6077,.5);
+        this.add.circle(unit.x-12,unit.y,8,0x090b13,.9).setDepth(5).setStrokeStyle(2,0x6d6f88,.5);
+        this.add.circle(unit.x+12,unit.y,8,0x090b13,.9).setDepth(5).setStrokeStyle(2,0x6d6f88,.5);
+      }
     });
 
     this._nextPetal=0;
@@ -128,9 +152,17 @@ export function installVisualArt(GameScene){
       this.player.body.setSize(34,72,true);
       this.rumiVisual=this.add.image(this.player.x,this.player.y,'rumi_idle').setDepth(20).setOrigin(.5,1);
       setRumiPose(this,'idle');
-      this.rumiAura=this.add.ellipse(this.player.x,this.player.y,80,96,0x9e78ff,.035).setDepth(16).setStrokeStyle(2,0xe8dcff,.08);
+      this.rumiAura=this.add.ellipse(this.player.x,this.player.y,86,102,0x9e78ff,.025).setDepth(16).setStrokeStyle(2,0xe8dcff,.07);
       syncRumiVisual(this,this.time.now);
     }
+
+    // Redesign existing HUD into a tighter reference-inspired layout.
+    if(this.healthText)this.healthText.setFontSize(15).setPosition(178,42);
+    if(this.healthBar){this.healthBar.setPosition(62,42);this.healthBar.height=18;}
+    if(this.syncText)this.syncText.setFontSize(13).setPosition(410,74);
+    if(this.syncBar){this.syncBar.setPosition(248,74);this.syncBar.height=14;}
+    if(this.styleText)this.styleText.setPosition(1170,40).setFontSize(14);
+    if(this.upgradeText)this.upgradeText.setPosition(1170,68).setFontSize(11);
   };
 
   GameScene.prototype.spawnEnemy=function(type,x,y){
@@ -138,7 +170,7 @@ export function installVisualArt(GameScene){
     if(this.textures.exists(key)){
       e.setAlpha(.001);
       e.visual=this.add.image(e.x,e.y,key).setDepth(18);
-      const s=type==='boss'?1:type==='brute'?.92:.9;
+      const s=type==='boss'?1.22:type==='brute'?1.12:1.06;
       e.visual.setScale(s);e.visual.baseScale=s;
     }
     return e;
@@ -156,8 +188,8 @@ export function installVisualArt(GameScene){
 
   GameScene.prototype.hitEnemy=function(e,damage,step,buildSync=false){
     if(e.visual){
-      e.visual.setTint(0xff82d4);
-      e.visual.setScale((e.visual.baseScale||1)*1.07,(e.visual.baseScale||1)*.94);
+      e.visual.setTint(0xff76dc);
+      e.visual.setScale((e.visual.baseScale||1)*1.08,(e.visual.baseScale||1)*.94);
       this.time.delayedCall(105,()=>{if(e.visual?.active){e.visual.clearTint();e.visual.setScale(e.visual.baseScale||1);}});
     }
     return originalHitEnemy.call(this,e,damage,step,buildSync);
@@ -166,23 +198,20 @@ export function installVisualArt(GameScene){
   GameScene.prototype.killEnemy=function(e){
     if(e.visual?.active){
       const v=e.visual;e.visual=null;
-      this.tweens.add({targets:v,alpha:0,scaleX:v.scaleX*1.3,scaleY:v.scaleY*.65,y:v.y-14,duration:e.type==='boss'?460:280,onComplete:()=>v.destroy()});
+      this.tweens.add({targets:v,alpha:0,scaleX:v.scaleX*1.32,scaleY:v.scaleY*.62,y:v.y-16,duration:e.type==='boss'?480:300,onComplete:()=>v.destroy()});
     }
     return originalKillEnemy.call(this,e);
   };
 
   GameScene.prototype.update=function(time,delta){
     originalUpdate.call(this,time,delta);
-
     if(time>this._nextPetal){
-      this._nextPetal=time+Phaser.Math.Between(850,1450);
-      const cam=this.cameras.main,px=cam.scrollX+cam.width+30,py=Phaser.Math.Between(120,430);
-      const petal=this.add.ellipse(px,py,9,4,0xffa7cf,.40).setDepth(10);
-      this.tweens.add({targets:petal,x:px-Phaser.Math.Between(240,390),y:py+Phaser.Math.Between(30,90),angle:180,alpha:0,duration:Phaser.Math.Between(1800,2500),onComplete:()=>petal.destroy()});
+      this._nextPetal=time+Phaser.Math.Between(650,1100);
+      const cam=this.cameras.main,px=cam.scrollX+cam.width+30,py=Phaser.Math.Between(110,500);
+      const petal=this.add.ellipse(px,py,11,5,0xff8dc8,.52).setDepth(10).setAngle(Phaser.Math.Between(-25,25));
+      this.tweens.add({targets:petal,x:px-Phaser.Math.Between(260,430),y:py+Phaser.Math.Between(40,110),angle:petal.angle+180,alpha:0,duration:Phaser.Math.Between(1800,2600),onComplete:()=>petal.destroy()});
     }
-
     if(this.characterId==='rumi'&&this.rumiVisual)syncRumiVisual(this,time);
-
     if(this.enemies)this.enemies.getChildren().forEach(e=>{
       if(!e.visual?.active)return;
       e.visual.setPosition(e.x,e.y).setFlipX(this.player.x<e.x);
