@@ -12,6 +12,7 @@ Phase 1–2 prototype: a landscape mobile-first Phaser 3 + Vite action-platforme
 - portrait orientation prompt
 - centralized tuning in `src/config/gameplay.js`
 - Attack is intentionally a placeholder until Phase 3
+- mobile ergonomics pass: controls inset from edges, joystick recenters on release, and platforms raised above the thumb zone
 
 ## Run locally
 Requires a reasonably current Node.js/npm installation.
