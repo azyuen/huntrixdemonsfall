@@ -10,4 +10,5 @@ A Phaser 3 + Vite mobile-first action-platformer prototype.
 - Enemy encounters and Dread Captain boss
 - Sync/support/duo/full-sync mechanics
 - Run upgrades and checkpoint recovery
+- Standalone transparent Rumi pose assets for idle, run, jump, attacks, finisher, aerial and dodge
 - Ongoing visual polish pass
