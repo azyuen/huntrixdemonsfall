@@ -5,6 +5,11 @@ export const GAMEPLAY = {
   fallDamage: 20, fallSyncLoss: 12,
   syncHitGain: 6, syncFinisherGain: 10,
 
+  // Current grunt defaults retained for the existing combat loop.
+  enemyMaxHealth: 70, enemySpeed: 92, enemyAttackRange: 78,
+  enemyAttackDamage: 12, enemyAttackCooldown: 1050,
+
+  // Phase 6 archetypes: these are now the source values for the encounter pass.
   enemies: {
     grunt: { name:'STALKER', health:70, speed:92, range:78, damage:12, cooldown:1050, width:48, height:76, color:0x271a35, outline:0x8d5b91 },
     brute: { name:'BRUTE', health:135, speed:58, range:92, damage:20, cooldown:1450, width:66, height:92, color:0x321d35, outline:0xa36a82 },
