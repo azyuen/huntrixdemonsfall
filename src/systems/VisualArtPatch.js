@@ -95,9 +95,9 @@ export function installVisualArt(GameScene){
     this.children.list.slice().forEach(obj=>{if(obj!==this.player&&obj.depth<0)obj.destroy();});
     buildSkyline(this);
 
-    // Tighter mobile framing: close enough to read Rumi and enemy tells without losing platform context.
-    this.cameras.main.setZoom(1.28);
-    this.cameras.main.startFollow(this.player,true,.11,.10,150,4);
+    // Closer mobile framing for larger characters and more readable combat.
+    this.cameras.main.setZoom(1.42);
+    this.cameras.main.startFollow(this.player,true,.12,.10,135,2);
 
     this.platforms?.getChildren().forEach((p,i)=>{
       p.setFillStyle?.(i%3===0?0x111326:0x15152a,1);p.setStrokeStyle?.(2,0x8c719b,.82);
@@ -110,12 +110,13 @@ export function installVisualArt(GameScene){
       this.rumiVisual=this.add.image(this.player.x,this.player.y,'rumi_idle').setDepth(20).setOrigin(.5,1);setRumiPose(this,'idle');
       this.rumiAura=this.add.ellipse(this.player.x,this.player.y,86,102,0x9e78ff,.025).setDepth(16).setStrokeStyle(2,0xe8dcff,.07);syncRumiVisual(this,this.time.now);
     }
-    if(this.healthText)this.healthText.setFontSize(15).setPosition(178,42);
-    if(this.healthBar){this.healthBar.setPosition(62,42);this.healthBar.height=18;}
-    if(this.syncText)this.syncText.setFontSize(13).setPosition(410,74);
-    if(this.syncBar){this.syncBar.setPosition(248,74);this.syncBar.height=14;}
-    if(this.styleText)this.styleText.setPosition(1170,40).setFontSize(14);
-    if(this.upgradeText)this.upgradeText.setPosition(1170,68).setFontSize(11);
+    // Pull HUD anchors toward the middle too so the stronger camera zoom doesn't crop them.
+    if(this.healthText)this.healthText.setFontSize(14).setPosition(270,58);
+    if(this.healthBar){this.healthBar.setPosition(165,58);this.healthBar.height=16;}
+    if(this.syncText)this.syncText.setFontSize(12).setPosition(545,92);
+    if(this.syncBar){this.syncBar.setPosition(405,92);this.syncBar.height=13;}
+    if(this.styleText)this.styleText.setPosition(1010,56).setFontSize(13);
+    if(this.upgradeText)this.upgradeText.setPosition(1010,82).setFontSize(10);
   };
 
   GameScene.prototype.spawnEnemy=function(type,x,y){const e=originalSpawnEnemy.call(this,type,x,y),key=type==='boss'?'enemy_boss':type==='brute'?'enemy_brute':type==='ranged'?'enemy_ranged':'enemy_grunt';if(this.textures.exists(key)){e.setAlpha(.001);e.visual=this.add.image(e.x,e.y,key).setDepth(18);const s=type==='boss'?1.22:type==='brute'?1.12:1.06;e.visual.setScale(s);e.visual.baseScale=s;}return e;};
