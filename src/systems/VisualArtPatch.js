@@ -8,48 +8,121 @@ export function installVisualArt(GameScene){
   const originalKillEnemy=GameScene.prototype.killEnemy;
   const originalPerformAttack=GameScene.prototype.performAttack;
 
-  const rumiKey=name=>`rumi_${name}`;
-  const sourceSizes={idle:[77,59],run:[97,55],jump:[102,59],attack1:[102,56],attack2:[105,56],finisher:[172,61],aerial:[157,55],dodge:[117,53]};
-  const scale=1.82;
+  const RUMI_ART_SCALE=1.02;
+  const fallbackSourceSizes={idle:[77,59],run:[97,55],jump:[102,59],attack1:[102,56],attack2:[105,56],finisher:[172,61],aerial:[157,55],dodge:[117,53]};
+  const fallbackScale=1.82;
 
-  const setRumiPose=(scene,name)=>{
+  const rumiFrameData={
+    r0_0:[5,8,118,111,2.1],r0_1:[123,8,106,111,3.3],r0_2:[229,8,107,111,-2.9],r0_3:[336,8,120,111,-3.9],
+    r0_4:[456,8,111,111,7.6],r0_5:[567,8,97,111,-1.3],r0_6:[664,8,96,111,1.9],r0_7:[760,8,94,111,-.2],r0_8:[854,8,78,111,7.8],
+    r1_0:[0,130,125,97,13.5],r1_1:[125,130,100,97,-.3],r1_2:[225,130,100,97,.2],r1_3:[325,130,107,97,-4],
+    r1_4:[432,130,110,97,1.8],r1_5:[542,130,105,97,.6],r1_6:[647,130,102,97,1.5],r1_7:[749,130,113,97,-6.6],r1_8:[862,130,101,97,13.6],
+    r2_0:[4,239,120,112,1],r2_1:[124,239,112,112,2],r2_2:[236,239,125,112,-8],r2_3:[361,239,143,112,-.9],
+    r2_4:[504,239,137,112,4.1],r2_5:[641,239,132,112,-1.8],r2_6:[773,239,138,112,-.9],r2_7:[911,239,99,112,21.1],
+    r3_0:[5,361,154,152,2.3],r3_1:[159,361,139,152,5.7],r3_2:[298,361,126,152,1],r3_3:[424,361,128,152,-2.7],
+    r3_4:[552,361,119,152,6.8],r3_5:[671,361,123,152,-8.7],r3_6:[794,361,140,152,.8],
+    r4_0:[0,526,150,126,-.6],r4_1:[150,526,138,126,6.7],r4_2:[288,526,153,126,-13.9],r4_3:[441,526,163,126,9.8],
+    r4_4:[604,526,171,126,-13.6],r4_5:[775,526,180,126,9.8],
+    r5_0:[0,666,183,80,27.1]
+  };
+
+  const rumiAnimations={
+    idle:{frames:['r0_0','r0_1','r0_2','r0_3'],frameRate:5,repeat:-1},
+    run:{frames:['r0_4','r0_5','r0_6','r0_7','r0_8','r1_0','r1_1','r1_2','r1_3','r1_4','r1_5','r1_6','r1_7','r1_8'],frameRate:14,repeat:-1},
+    jump:{frames:['r2_0','r2_1','r2_2'],frameRate:14,repeat:0},
+    aerial:{frames:['r2_3','r2_4','r2_5'],frameRate:8,repeat:-1},
+    land:{frames:['r2_7','r2_6'],frameRate:12,repeat:0},
+    dodge:{frames:['r2_3','r2_4','r2_5'],frameRate:17,repeat:0},
+    attack1:{frames:['r3_0','r3_1','r3_2'],frameRate:14,repeat:0},
+    attack2:{frames:['r3_3','r3_4','r3_5','r3_6'],frameRate:17,repeat:0},
+    finisher:{frames:['r4_0','r4_1','r4_2','r4_3','r4_4','r4_5'],frameRate:20,repeat:0}
+  };
+
+  const registerRumiAnimations=scene=>{
+    if(!scene.textures.exists('rumi_anim_atlas'))return false;
+    const texture=scene.textures.get('rumi_anim_atlas');
+    if(!texture||texture.key==='__MISSING')return false;
+    Object.entries(rumiFrameData).forEach(([name,[x,y,w,h]])=>{
+      if(!texture.has(name))texture.add(name,0,x,y,w,h);
+    });
+    Object.entries(rumiAnimations).forEach(([state,def])=>{
+      const key=`rumi-${state}`;
+      if(!scene.anims.exists(key))scene.anims.create({key,frames:def.frames.map(frame=>({key:'rumi_anim_atlas',frame})),frameRate:def.frameRate,repeat:def.repeat});
+    });
+    return texture.has('r0_0');
+  };
+
+  const setFallbackPose=(scene,name)=>{
     if(scene.characterId!=='rumi'||!scene.rumiVisual)return false;
-    const key=rumiKey(name);
+    const safeName=name==='land'?'idle':name;
+    const key=`rumi_${safeName}`;
     if(!scene.textures.exists(key))return false;
     if(scene.rumiVisual.texture.key!==key)scene.rumiVisual.setTexture(key);
-    const [sw,sh]=sourceSizes[name]||sourceSizes.idle;
-    scene.rumiVisual.setDisplaySize(sw*scale,sh*scale).setOrigin(.5,1).setVisible(true);
+    const [sw,sh]=fallbackSourceSizes[safeName]||fallbackSourceSizes.idle;
+    scene.rumiVisual.setDisplaySize(sw*fallbackScale,sh*fallbackScale).setOrigin(.5,1).setVisible(true);
     scene.rumiPose=name;
     return true;
+  };
+
+  const playRumi=(scene,name,force=false)=>{
+    if(scene.characterId!=='rumi'||!scene.rumiVisual)return false;
+    if(!scene.rumiUsesAtlas)return setFallbackPose(scene,name);
+    const key=`rumi-${name}`;
+    if(!scene.anims.exists(key))return false;
+    if(force||scene.rumiVisual.anims.currentAnim?.key!==key)scene.rumiVisual.play(key,!force);
+    scene.rumiPose=name;
+    scene.rumiVisual.setScale(RUMI_ART_SCALE).setOrigin(.5,1).setVisible(true);
+    return true;
+  };
+
+  const alignRumiToBody=scene=>{
+    const body=scene.player?.body,visual=scene.rumiVisual;
+    if(!body||!visual)return;
+    const flip=scene.lastFacing<0;
+    let offset=0;
+    if(scene.rumiUsesAtlas){const data=rumiFrameData[visual.frame?.name];if(data)offset=data[4]||0;}
+    const facingSign=flip?-1:1;
+    visual.setPosition(body.center.x-offset*RUMI_ART_SCALE*facingSign,body.bottom+5).setFlipX(flip);
+  };
+
+  const makeRumiGhost=scene=>{
+    const visual=scene.rumiVisual;
+    if(!visual)return;
+    let ghost;
+    if(scene.rumiUsesAtlas){ghost=scene.add.image(visual.x,visual.y,'rumi_anim_atlas',visual.frame?.name||'r2_4').setOrigin(.5,1).setScale(RUMI_ART_SCALE);}
+    else{ghost=scene.add.image(visual.x,visual.y,visual.texture.key).setDisplaySize(visual.displayWidth,visual.displayHeight).setOrigin(.5,1);}
+    ghost.setFlipX(visual.flipX).setAlpha(.2).setTint(0xc5b5ff).setDepth(17);
+    scene.tweens.add({targets:ghost,alpha:0,x:ghost.x-(scene.lastFacing||1)*24,duration:180,onComplete:()=>ghost.destroy()});
   };
 
   const syncRumiVisual=(scene,time)=>{
     if(!scene.rumiVisual||!scene.player?.body)return;
     const body=scene.player.body;
     const grounded=body.blocked.down||body.touching.down;
+    const wasGrounded=scene._rumiWasGrounded;
     const dodging=time<=scene.dodgeInvulnerableUntil;
-    if(dodging)setRumiPose(scene,'dodge');
+    const wasDodging=scene._rumiWasDodging;
+
+    if(dodging){if(!wasDodging)playRumi(scene,'dodge',true);}
     else if(scene.isAttacking||time<scene._rumiAttackLockUntil){}
-    else if(!grounded)setRumiPose(scene,Math.abs(body.velocity.x)>240?'aerial':'jump');
-    else if(Math.abs(body.velocity.x)>45)setRumiPose(scene,'run');
-    else setRumiPose(scene,'idle');
-    scene.rumiVisual.setPosition(body.center.x,body.bottom+5).setFlipX(scene.lastFacing<0);
+    else if(grounded&&!wasGrounded){scene._rumiLandingUntil=time+150;playRumi(scene,'land',true);}
+    else if(time<scene._rumiLandingUntil){}
+    else if(!grounded&&wasGrounded){scene._rumiJumpUntil=time+180;playRumi(scene,'jump',true);}
+    else if(!grounded){if(time>=scene._rumiJumpUntil)playRumi(scene,'aerial');}
+    else if(Math.abs(body.velocity.x)>45)playRumi(scene,'run');
+    else playRumi(scene,'idle');
+
+    alignRumiToBody(scene);
     if(dodging){
-      scene.rumiVisual.setAlpha(.76).setAngle((scene.lastFacing||1)*2.5);
-      if(time-scene._lastRumiGhost>70){
-        const ghost=scene.add.image(scene.rumiVisual.x,scene.rumiVisual.y,scene.rumiVisual.texture.key)
-          .setDisplaySize(scene.rumiVisual.displayWidth,scene.rumiVisual.displayHeight).setOrigin(.5,1)
-          .setFlipX(scene.rumiVisual.flipX).setAlpha(.20).setTint(0xc5b5ff).setDepth(17);
-        scene.tweens.add({targets:ghost,alpha:0,x:ghost.x-(scene.lastFacing||1)*24,duration:180,onComplete:()=>ghost.destroy()});
-        scene._lastRumiGhost=time;
-      }
+      scene.rumiVisual.setAlpha(.78).setAngle((scene.lastFacing||1)*1.5);
+      if(time-scene._lastRumiGhost>65){makeRumiGhost(scene);scene._lastRumiGhost=time;}
     }else{
       scene.rumiVisual.setAlpha(1);
-      if(scene.rumiPose==='run')scene.rumiVisual.setAngle(Math.sin(time/125)*.55);
-      else if(scene.rumiPose==='jump'||scene.rumiPose==='aerial')scene.rumiVisual.setAngle(Phaser.Math.Clamp(body.velocity.y/320,-2,2.5));
+      if(scene.rumiPose==='aerial'||scene.rumiPose==='jump')scene.rumiVisual.setAngle(Phaser.Math.Clamp(body.velocity.y/420,-1.6,2));
       else scene.rumiVisual.setAngle(0);
     }
     if(scene.rumiAura){scene.rumiAura.setPosition(body.center.x,body.bottom-44);scene.rumiAura.setAlpha(scene.isAttacking?.09:.028);}
+    scene._rumiWasGrounded=grounded;scene._rumiWasDodging=dodging;
   };
 
   const attackSpark=(scene,finisher=false)=>{
@@ -90,78 +163,37 @@ export function installVisualArt(GameScene){
     scene.add.rectangle(W/2,548,W,6,0x6f4f85,.40).setScrollFactor(0).setDepth(-113);
   };
 
-  // HUD is rendered by the same zoomed camera as the world. Counter-transform it back
-  // into screen space so health/sync never disappear when gameplay zoom changes.
   const layoutHUDForZoom=scene=>{
-    const zoom=scene.cameras.main.zoom||1;
-    const inv=1/zoom;
-    const cx=scene.scale.width/2,cy=scene.scale.height/2;
+    const zoom=scene.cameras.main.zoom||1,inv=1/zoom,cx=scene.scale.width/2,cy=scene.scale.height/2;
     const map=(sx,sy)=>({x:cx+(sx-cx)/zoom,y:cy+(sy-cy)/zoom});
-    const place=(obj,sx,sy)=>{
-      if(!obj)return;
-      const p=map(sx,sy);
-      obj.setPosition(p.x,p.y).setScale(inv);
-    };
-
+    const place=(obj,sx,sy)=>{if(!obj)return;const p=map(sx,sy);obj.setPosition(p.x,p.y).setScale(inv);};
     const hudBgs=scene.children.list.filter(o=>o.depth===120&&o.scrollFactorX===0&&o.type==='Rectangle');
     const nearest=(tx,ty,exclude)=>hudBgs.filter(o=>o!==exclude).sort((a,b)=>((a.x-tx)**2+(a.y-ty)**2)-((b.x-tx)**2+(b.y-ty)**2))[0];
-    scene._healthHudBg=scene._healthHudBg||nearest(175,48,null);
-    scene._syncHudBg=scene._syncHudBg||nearest(780,92,scene._healthHudBg);
-
-    place(scene._healthHudBg,190,52);
-    if(scene._healthHudBg)scene._healthHudBg.setScale(inv);
-    place(scene.healthBar,56,52);
-    if(scene.healthBar)scene.healthBar.setOrigin(0,.5);
-    place(scene.healthText,190,52);
-    if(scene.healthText)scene.healthText.setFontSize(15);
-
-    place(scene._syncHudBg,640,54);
-    if(scene._syncHudBg)scene._syncHudBg.setScale(inv);
-    place(scene.syncBar,477,54);
-    if(scene.syncBar)scene.syncBar.setOrigin(0,.5);
-    place(scene.syncText,640,54);
-    if(scene.syncText)scene.syncText.setFontSize(13);
-
-    place(scene.comboText,640,90);
-    if(scene.comboText)scene.comboText.setFontSize(18);
-    place(scene.styleText,1080,50);
-    if(scene.styleText)scene.styleText.setFontSize(14);
-    place(scene.upgradeText,1080,76);
-    if(scene.upgradeText)scene.upgradeText.setFontSize(11);
-
-    place(scene.bossHudBg,640,112);
-    place(scene.bossHudBar,363,112);
-    if(scene.bossHudBar)scene.bossHudBar.setOrigin(0,.5);
-    place(scene.bossHudText,640,112);
+    scene._healthHudBg=scene._healthHudBg||nearest(175,48,null);scene._syncHudBg=scene._syncHudBg||nearest(780,92,scene._healthHudBg);
+    place(scene._healthHudBg,190,52);if(scene._healthHudBg)scene._healthHudBg.setScale(inv);place(scene.healthBar,56,52);if(scene.healthBar)scene.healthBar.setOrigin(0,.5);place(scene.healthText,190,52);if(scene.healthText)scene.healthText.setFontSize(15);
+    place(scene._syncHudBg,640,54);if(scene._syncHudBg)scene._syncHudBg.setScale(inv);place(scene.syncBar,477,54);if(scene.syncBar)scene.syncBar.setOrigin(0,.5);place(scene.syncText,640,54);if(scene.syncText)scene.syncText.setFontSize(13);
+    place(scene.comboText,640,90);if(scene.comboText)scene.comboText.setFontSize(18);place(scene.styleText,1080,50);if(scene.styleText)scene.styleText.setFontSize(14);place(scene.upgradeText,1080,76);if(scene.upgradeText)scene.upgradeText.setFontSize(11);
+    place(scene.bossHudBg,640,112);place(scene.bossHudBar,363,112);if(scene.bossHudBar)scene.bossHudBar.setOrigin(0,.5);place(scene.bossHudText,640,112);
   };
 
   GameScene.prototype.create=function(...args){
     originalCreate.apply(this,args);
     this.children.list.slice().forEach(obj=>{if(obj!==this.player&&obj.depth<0)obj.destroy();});
     buildSkyline(this);
-
-    this.cameras.main.setZoom(1.42);
-    this.cameras.main.startFollow(this.player,true,.12,.10,135,2);
-
-    this.platforms?.getChildren().forEach((p,i)=>{
-      p.setFillStyle?.(i%3===0?0x111326:0x15152a,1);p.setStrokeStyle?.(2,0x8c719b,.82);
-      this.add.rectangle(p.x,p.y-p.height/2+3,Math.max(12,p.width-8),7,0xa383ad,.76).setDepth(3);
-      if(i%2===0){const unit=this.add.rectangle(p.x-p.width*.28,p.y-p.height/2-22,54,34,0x191c30,.96).setDepth(4).setStrokeStyle(2,0x5f6077,.5);this.add.circle(unit.x-12,unit.y,8,0x090b13,.9).setDepth(5).setStrokeStyle(2,0x6d6f88,.5);this.add.circle(unit.x+12,unit.y,8,0x090b13,.9).setDepth(5).setStrokeStyle(2,0x6d6f88,.5);}
-    });
-
-    this._nextPetal=0;this._lastRumiGhost=0;this._rumiAttackLockUntil=0;
-    if(this.characterId==='rumi'&&this.textures.exists('rumi_idle')){
-      this.player.setTexture('rumi').setVisible(false).setAlpha(1);this.player.body.setSize(34,72,true);
-      this.rumiVisual=this.add.image(this.player.x,this.player.y,'rumi_idle').setDepth(20).setOrigin(.5,1);setRumiPose(this,'idle');
-      this.rumiAura=this.add.ellipse(this.player.x,this.player.y,86,102,0x9e78ff,.025).setDepth(16).setStrokeStyle(2,0xe8dcff,.07);syncRumiVisual(this,this.time.now);
+    this.cameras.main.setZoom(1.42);this.cameras.main.startFollow(this.player,true,.12,.10,135,2);
+    this.platforms?.getChildren().forEach((p,i)=>{p.setFillStyle?.(i%3===0?0x111326:0x15152a,1);p.setStrokeStyle?.(2,0x8c719b,.82);this.add.rectangle(p.x,p.y-p.height/2+3,Math.max(12,p.width-8),7,0xa383ad,.76).setDepth(3);if(i%2===0){const unit=this.add.rectangle(p.x-p.width*.28,p.y-p.height/2-22,54,34,0x191c30,.96).setDepth(4).setStrokeStyle(2,0x5f6077,.5);this.add.circle(unit.x-12,unit.y,8,0x090b13,.9).setDepth(5).setStrokeStyle(2,0x6d6f88,.5);this.add.circle(unit.x+12,unit.y,8,0x090b13,.9).setDepth(5).setStrokeStyle(2,0x6d6f88,.5);}});
+    this._nextPetal=0;this._lastRumiGhost=0;this._rumiAttackLockUntil=0;this._rumiJumpUntil=0;this._rumiLandingUntil=0;this._rumiWasGrounded=false;this._rumiWasDodging=false;
+    if(this.characterId==='rumi'){
+      this.player.setTexture('rumi').setVisible(false).setAlpha(1);this.player.body.setSize(34,72,true);this.rumiUsesAtlas=registerRumiAnimations(this);
+      if(this.rumiUsesAtlas){this.rumiVisual=this.add.sprite(this.player.x,this.player.y,'rumi_anim_atlas','r0_0').setDepth(20).setOrigin(.5,1).setScale(RUMI_ART_SCALE);playRumi(this,'idle',true);}
+      else if(this.textures.exists('rumi_idle')){this.rumiVisual=this.add.image(this.player.x,this.player.y,'rumi_idle').setDepth(20).setOrigin(.5,1);setFallbackPose(this,'idle');}
+      if(this.rumiVisual){this.rumiAura=this.add.ellipse(this.player.x,this.player.y,86,102,0x9e78ff,.025).setDepth(16).setStrokeStyle(2,0xe8dcff,.07);syncRumiVisual(this,this.time.now);}
     }
-
-    // TouchControls already has its own zoom compensation. Apply the same principle to HUD.
     layoutHUDForZoom(this);
   };
 
   GameScene.prototype.spawnEnemy=function(type,x,y){const e=originalSpawnEnemy.call(this,type,x,y),key=type==='boss'?'enemy_boss':type==='brute'?'enemy_brute':type==='ranged'?'enemy_ranged':'enemy_grunt';if(this.textures.exists(key)){e.setAlpha(.001);e.visual=this.add.image(e.x,e.y,key).setDepth(18);const s=type==='boss'?1.22:type==='brute'?1.12:1.06;e.visual.setScale(s);e.visual.baseScale=s;}return e;};
-  GameScene.prototype.performAttack=function(time){originalPerformAttack.call(this,time);if(this.characterId==='rumi'&&this.rumiVisual){const pose=this.comboStep===0?'attack1':this.comboStep===1?'attack2':'finisher';setRumiPose(this,pose);this._rumiAttackLockUntil=time+(this.hunter.attackDuration[this.comboStep]||260);attackSpark(this,this.comboStep===2);}};
+  GameScene.prototype.performAttack=function(time){originalPerformAttack.call(this,time);if(this.characterId==='rumi'&&this.rumiVisual){const step=this.comboStep,pose=step===0?'attack1':step===1?'attack2':'finisher';playRumi(this,pose,true);this._rumiAttackLockUntil=time+(this.hunter.attackDuration[step]||260);attackSpark(this,step===2);}};
   GameScene.prototype.hitEnemy=function(e,damage,step,buildSync=false){if(e.visual){e.visual.setTint(0xff76dc);e.visual.setScale((e.visual.baseScale||1)*1.08,(e.visual.baseScale||1)*.94);this.time.delayedCall(105,()=>{if(e.visual?.active){e.visual.clearTint();e.visual.setScale(e.visual.baseScale||1);}});}return originalHitEnemy.call(this,e,damage,step,buildSync);};
   GameScene.prototype.killEnemy=function(e){if(e.visual?.active){const v=e.visual;e.visual=null;this.tweens.add({targets:v,alpha:0,scaleX:v.scaleX*1.32,scaleY:v.scaleY*.62,y:v.y-16,duration:e.type==='boss'?480:300,onComplete:()=>v.destroy()});}return originalKillEnemy.call(this,e);};
   GameScene.prototype.update=function(time,delta){
