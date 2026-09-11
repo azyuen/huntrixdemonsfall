@@ -5,8 +5,9 @@ export default class TouchControls {
     const h=scene.scale.height;
     const w=scene.scale.width;
 
-    this.centerX=155;
-    this.centerY=h-125;
+    // Keep controls comfortably inside phone safe areas and closer to natural thumb arcs.
+    this.centerX=215;
+    this.centerY=h-145;
 
     this.base=scene.add.circle(this.centerX,this.centerY,68,0x0b1020,.46)
       .setStrokeStyle(3,0xd8dcff,.72).setScrollFactor(0).setDepth(100).setInteractive();
@@ -33,18 +34,21 @@ export default class TouchControls {
       return b;
     };
 
-    const attackX=w-120;
-    const attackY=h-105;
+    // Entire action cluster shifted left and upward from the screen edges.
+    const attackX=w-235;
+    const attackY=h-145;
     btn(attackX,attackY,'ATTACK',()=>this.attack=true,{r:45,icon:'⚔'});
     btn(attackX-125,attackY+4,'JUMP',()=>this.jump=true,{r:42,icon:'↑'});
     btn(attackX+5,attackY-125,'DODGE',()=>this.dodge=true,{r:42,icon:'➜'});
-    btn(attackX+105,attackY-12,'SYNC\nATTACK',()=>this.sync=true,{r:56,accent:0xffba31,glow:true,icon:'✦'});
+    btn(attackX+100,attackY-12,'SYNC\nATTACK',()=>this.sync=true,{r:54,accent:0xffba31,glow:true,icon:'✦'});
 
+    // Capture joystick dragging globally while this pointer owns the stick. This prevents
+    // camera zoom/scroll transforms from making the stick feel reversed or dropping input.
     this.base.on('pointerdown',p=>{
       if(this.joystickPointerId===null)this.joystickPointerId=p.id;
       if(p.id===this.joystickPointerId)this.moveStick(p);
     });
-    this.base.on('pointermove',p=>{
+    scene.input.on('pointermove',p=>{
       if(p.id===this.joystickPointerId && p.isDown)this.moveStick(p);
     });
     scene.input.on('pointerup',p=>{
@@ -54,7 +58,9 @@ export default class TouchControls {
   }
 
   moveStick(p){
-    const dx=Phaser.Math.Clamp(p.x-this.centerX,-52,52);
+    // pointer.position is screen-space; controls are fixed to screen-space too.
+    const px=p.position?.x ?? p.x;
+    const dx=Phaser.Math.Clamp(px-this.centerX,-52,52);
     this.knob.x=this.centerX+dx;
     this.axis=Math.abs(dx)<10?0:dx/52;
   }
