@@ -1,3 +1,5 @@
+import Phaser from 'phaser';
+
 export function installVisualArt(GameScene){
   const originalCreate=GameScene.prototype.create;
   const originalUpdate=GameScene.prototype.update;
@@ -42,24 +44,21 @@ export function installVisualArt(GameScene){
   GameScene.prototype.create=function(...args){
     originalCreate.apply(this,args);
 
-    // Remove all legacy procedural skyline objects. The illustrated CSS background is now the sole skyline layer.
     this.children.list.slice().forEach(obj=>{
       if(obj===this.player)return;
       if(obj.depth<0)obj.destroy();
     });
 
-    // Re-style the prototype collision platforms so they read as rooftops instead of grey test blocks.
     this.platforms?.getChildren().forEach((p,i)=>{
       p.setFillStyle?.(i%3===0?0x15162a:0x1a1830,1);
       p.setStrokeStyle?.(2,0x514768,.8);
-      const lip=this.add.rectangle(p.x,p.y-p.height/2+3,Math.max(12,p.width-8),7,0x75627e,.82).setDepth(3);
+      this.add.rectangle(p.x,p.y-p.height/2+3,Math.max(12,p.width-8),7,0x75627e,.82).setDepth(3);
       if(i%2===0){
         const vent=this.add.rectangle(p.x-p.width*.28,p.y-p.height/2-14,36,22,0x24263b,.9).setDepth(4).setStrokeStyle(2,0x5f6077,.55);
         this.add.rectangle(vent.x,vent.y-4,24,3,0x77798e,.65).setDepth(5);
       }
     });
 
-    // Light atmospheric petals: deliberately sparse so they never obscure combat.
     this._nextPetal=0;
     this._wasGrounded=false;
     this._lastRumiGhost=0;
@@ -72,7 +71,6 @@ export function installVisualArt(GameScene){
       this.player.body.setSize(31,66,true);
       this.player.body.setOffset(80,18);
       this.player.setOrigin(.5,.72);
-      this.player.setPipeline?.('TextureTintPipeline');
       setRumiFrame(this,'idle');
     }else{
       this.player.setTexture(this.characterId);
@@ -134,7 +132,6 @@ export function installVisualArt(GameScene){
   GameScene.prototype.update=function(time,delta){
     originalUpdate.call(this,time,delta);
 
-    // Atmospheric foreground movement.
     if(time>this._nextPetal){
       this._nextPetal=time+Phaser.Math.Between(520,900);
       const cam=this.cameras.main;
@@ -147,7 +144,6 @@ export function installVisualArt(GameScene){
       this.player.setFlipX(this.lastFacing<0);
       const grounded=this.player.body.blocked.down||this.player.body.touching.down;
 
-      // Landing feedback makes jump -> run feel deliberate instead of snapping between stills.
       if(grounded&&!this._wasGrounded&&this.characterId==='rumi'){
         const dust=this.add.ellipse(this.player.x,this.player.y+31,62,14,0xc7b5d9,.2).setDepth(15);
         this.tweens.add({targets:dust,scaleX:1.5,alpha:0,duration:220,onComplete:()=>dust.destroy()});
@@ -163,7 +159,6 @@ export function installVisualArt(GameScene){
           this.player.setAngle(this.lastFacing*3);
           if(time-this._lastRumiGhost>55){makeAfterImage(this,.24);this._lastRumiGhost=time;}
         }else if(this.isAttacking||time<this._rumiAttackLockUntil){
-          // attack pose remains locked until the gameplay attack window ends
         }else if(!grounded){
           setRumiFrame(this,Math.abs(this.player.body.velocity.x)>240?'aerial':'jump');
           this.player.setAngle(Phaser.Math.Clamp(this.player.body.velocityY/220,-4,5));
