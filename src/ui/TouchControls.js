@@ -1,11 +1,10 @@
 export default class TouchControls {
   constructor(scene){
-    this.scene=scene; this.axis=0; this.jump=false; this.dodge=false; this.attack=false;
+    this.scene=scene; this.axis=0; this.jump=false; this.dodge=false; this.attack=false; this.sync=false;
     this.joystickPointerId=null;
     const h=scene.scale.height;
     const w=scene.scale.width;
 
-    // Keep controls comfortably inside phone edges / safe areas.
     this.centerX=175;
     this.centerY=h-145;
 
@@ -17,16 +16,17 @@ export default class TouchControls {
     const buttonY=h-140;
     const rightInset=165;
     const gap=125;
-    const bind=(x,label,cb)=>{
-      const b=scene.add.image(x,buttonY,'button').setScrollFactor(0).setDepth(100).setInteractive();
-      scene.add.text(x,buttonY,label,{fontFamily:'system-ui',fontSize:'17px',fontStyle:'bold',color:'#fff'})
+    const bind=(x,y,label,cb,scale=1)=>{
+      const b=scene.add.image(x,y,'button').setScale(scale).setScrollFactor(0).setDepth(100).setInteractive();
+      scene.add.text(x,y,label,{fontFamily:'system-ui',fontSize:scale<1?'15px':'17px',fontStyle:'bold',color:'#fff'})
         .setOrigin(.5).setScrollFactor(0).setDepth(101);
       b.on('pointerdown',cb);
     };
 
-    bind(w-rightInset,'ATTACK',()=>this.attack=true);
-    bind(w-rightInset-gap,'JUMP',()=>this.jump=true);
-    bind(w-rightInset-gap*2,'DODGE',()=>this.dodge=true);
+    bind(w-rightInset,buttonY,'ATTACK',()=>this.attack=true);
+    bind(w-rightInset-gap,buttonY,'JUMP',()=>this.jump=true);
+    bind(w-rightInset-gap*2,buttonY,'DODGE',()=>this.dodge=true);
+    bind(w-rightInset-gap,buttonY-118,'SYNC',()=>this.sync=true,.82);
 
     this.base.on('pointerdown',p=>{
       if(this.joystickPointerId===null)this.joystickPointerId=p.id;
@@ -35,9 +35,6 @@ export default class TouchControls {
     this.base.on('pointermove',p=>{
       if(p.id===this.joystickPointerId && p.isDown)this.moveStick(p);
     });
-
-    // Only release the joystick when the SAME finger that owns it lifts.
-    // Releasing Jump / Attack / Dodge must not snap the stick back.
     scene.input.on('pointerup',p=>{
       if(p.id===this.joystickPointerId)this.reset();
     });
