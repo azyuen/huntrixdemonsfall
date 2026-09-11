@@ -37,7 +37,7 @@ export default class GameScene extends Phaser.Scene {
     this.lastPlayerHit=-9999;this.lastFacing=1;this.lastDodge=-9999;
     this.isAttacking=false;this.comboStep=0;this.lastAttack=-9999;
     this.sync=0;this.maxSync=100;this.supportIndex=0;
-    this.isRespawning=false;this.lastSafeX=180;this.lastSafeY=430;
+    this.isRespawning=false;this.isDefeated=false;this.lastSafeX=180;this.lastSafeY=430;
     this.checkpointX=180;this.checkpointY=430;
     this.airDodgeUsed=false;
 
@@ -80,35 +80,52 @@ export default class GameScene extends Phaser.Scene {
     return this.platformSpecs.find(([px,py,pw])=>x>=px-pw/2&&x<=px+pw/2)||null;
   }
 
+  findNearestPlatform(x){
+    let best=null,bestDistance=Infinity;
+    this.platformSpecs.forEach(p=>{
+      const [px,py,pw]=p,left=px-pw/2,right=px+pw/2;
+      const distance=x<left?left-x:x>right?x-right:0;
+      if(distance<bestDistance){bestDistance=distance;best=p;}
+    });
+    return best;
+  }
+
   spawnEnemy(type,x,y){
     const stats=GAMEPLAY.enemies[type]||GAMEPLAY.enemies.grunt;
-    const e=this.add.rectangle(x,y,stats.width,stats.height,stats.color).setStrokeStyle(4,stats.outline);
+    const p=this.findPlatformAt(x)||this.findNearestPlatform(x);
+    const [px,py,pw,ph]=p;
+    const platformLeft=px-pw/2+stats.width/2+16;
+    const platformRight=px+pw/2-stats.width/2-16;
+    const spawnX=Phaser.Math.Clamp(x,platformLeft,platformRight);
+    const spawnY=py-ph/2-stats.height/2-2;
+
+    const e=this.add.rectangle(spawnX,spawnY,stats.width,stats.height,stats.color).setStrokeStyle(4,stats.outline);
     this.physics.add.existing(e);e.body.setSize(stats.width,stats.height);
     e.type=type;e.stats=stats;e.health=stats.health;e.maxHealth=stats.health;e.lastAttack=-9999;e.dead=false;e.hitUntil=0;
-
-    const p=this.findPlatformAt(x);
-    if(p){
-      const [px,py,pw,ph]=p;
-      e.platformLeft=px-pw/2+stats.width/2+10;
-      e.platformRight=px+pw/2-stats.width/2-10;
-      e.spawnX=Phaser.Math.Clamp(x,e.platformLeft,e.platformRight);
-      e.spawnY=py-ph/2-stats.height/2-2;
-    }else{
-      e.platformLeft=x-80;e.platformRight=x+80;e.spawnX=x;e.spawnY=y;
-    }
+    e.platformLeft=platformLeft;e.platformRight=platformRight;e.spawnX=spawnX;e.spawnY=spawnY;
 
     this.enemies.add(e);
-    e.hpBg=this.add.rectangle(x,y-stats.height/2-16,Math.max(58,stats.width+12),8,0x160e20).setDepth(30);
-    e.hpBar=this.add.rectangle(x-Math.max(56,stats.width+10)/2,y-stats.height/2-16,Math.max(56,stats.width+10),5,stats.outline).setOrigin(0,.5).setDepth(31);
-    e.label=this.add.text(x,y-stats.height/2-34,stats.name,{fontFamily:'system-ui',fontSize:'12px',fontStyle:'bold',color:'#c9bfd9'}).setOrigin(.5).setDepth(31);
+    e.hpBg=this.add.rectangle(spawnX,spawnY-stats.height/2-16,Math.max(58,stats.width+12),8,0x160e20).setDepth(30);
+    e.hpBar=this.add.rectangle(spawnX-Math.max(56,stats.width+10)/2,spawnY-stats.height/2-16,Math.max(56,stats.width+10),5,stats.outline).setOrigin(0,.5).setDepth(31);
+    e.label=this.add.text(spawnX,spawnY-stats.height/2-34,stats.name,{fontFamily:'system-ui',fontSize:'12px',fontStyle:'bold',color:'#c9bfd9'}).setOrigin(.5).setDepth(31);
+  }
+
+  updateCheckpoint(){
+    if(this.player.x<=this.checkpointX+900)return;
+    const p=this.findPlatformAt(this.player.x)||this.findNearestPlatform(this.player.x);
+    if(!p)return;
+    const [px,py,pw,ph]=p;
+    const inset=70;
+    this.checkpointX=Phaser.Math.Clamp(this.player.x,px-pw/2+inset,px+pw/2-inset);
+    this.checkpointY=py-ph/2-this.player.displayHeight/2-2;
   }
 
   update(time){
-    if(this.isRespawning){this.updateHUD();return;}
+    if(this.isRespawning||this.isDefeated){this.updateHUD();return;}
     const grounded=this.player.body.blocked.down||this.player.body.touching.down;
     if(grounded){
       this.lastSafeX=this.player.x;this.lastSafeY=this.player.y;this.airDodgeUsed=false;
-      if(this.player.x>this.checkpointX+900){this.checkpointX=this.player.x;this.checkpointY=this.player.y;}
+      this.updateCheckpoint();
     }
     if(this.player.y>790){this.handleFall();this.updateHUD();return;}
 
@@ -144,14 +161,14 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handleFall(){
-    if(this.isRespawning)return;
+    if(this.isRespawning||this.isDefeated)return;
     this.isRespawning=true;this.isAttacking=false;this.player.setVelocity(0);
     this.playerHealth=Math.max(0,this.playerHealth-GAMEPLAY.fallDamage);
     this.sync=Math.max(0,this.sync-GAMEPLAY.fallSyncLoss);
     this.flashSyncLabel(`FALL!  -${GAMEPLAY.fallDamage} HP`);
     this.cameras.main.shake(160,.007);this.cameras.main.fadeOut(230,10,6,25);
     this.time.delayedCall(260,()=>{
-      if(this.playerHealth<=0)this.resetPlayer();
+      if(this.playerHealth<=0){this.isRespawning=false;this.handleDefeat('FALL');}
       else{
         this.player.setPosition(this.lastSafeX,this.lastSafeY-18);this.player.setVelocity(0);this.player.setAlpha(.6);
         this.lastPlayerHit=this.time.now;this.cameras.main.fadeIn(260,10,6,25);
@@ -266,13 +283,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   keepEnemyOnPlatform(e,velocityX){
-    if(e.y>760){
+    if(e.y>720){
       e.setPosition(e.spawnX,e.spawnY);e.body.setVelocity(0);return 0;
     }
     if(e.x<e.platformLeft){e.x=e.platformLeft;e.body.setVelocityX(0);return Math.max(0,velocityX);}
     if(e.x>e.platformRight){e.x=e.platformRight;e.body.setVelocityX(0);return Math.min(0,velocityX);}
-    if(velocityX<0&&e.x<=e.platformLeft+8)return 0;
-    if(velocityX>0&&e.x>=e.platformRight-8)return 0;
+    if(velocityX<0&&e.x<=e.platformLeft+12)return 0;
+    if(velocityX>0&&e.x>=e.platformRight-12)return 0;
     return velocityX;
   }
 
@@ -283,7 +300,7 @@ export default class GameScene extends Phaser.Scene {
       e.hpBg.setPosition(e.x,top-16);e.label.setPosition(e.x,top-34);
       const w=Math.max(56,e.stats.width+10);e.hpBar.setPosition(e.x-w/2,top-16);e.hpBar.width=w*Math.max(0,e.health/e.maxHealth);
 
-      if(e.y>760){this.keepEnemyOnPlatform(e,0);return;}
+      if(e.y>720){this.keepEnemyOnPlatform(e,0);return;}
       if(time<e.hitUntil){
         e.body.setVelocityX(this.keepEnemyOnPlatform(e,e.body.velocity.x));
         return;
@@ -325,28 +342,40 @@ export default class GameScene extends Phaser.Scene {
   }
 
   hitPlayerFromProjectile(p){
-    if(!p.active)return;
+    if(!p.active||this.isRespawning||this.isDefeated)return;
     const damage=p.damage||10;p.destroy();
     if(this.time.now-this.lastPlayerHit<GAMEPLAY.playerInvulnerability)return;
     this.damagePlayer(damage,0);
   }
 
   damagePlayer(damage,knockback=0){
+    if(this.isRespawning||this.isDefeated)return;
     this.lastPlayerHit=this.time.now;
     this.playerHealth=Math.max(0,this.playerHealth-damage);
     this.player.setTint(0xff7c9d);if(knockback)this.player.setVelocityX(knockback);
     this.cameras.main.shake(100,.006);
     this.time.delayedCall(180,()=>this.player.clearTint());
-    if(this.playerHealth<=0)this.resetPlayer();
+    if(this.playerHealth<=0)this.handleDefeat('DEMONS');
+  }
+
+  handleDefeat(reason='DEFEATED'){
+    if(this.isDefeated)return;
+    this.isDefeated=true;this.isRespawning=false;this.isAttacking=false;
+    this.player.setVelocity(0);this.player.setAlpha(.45);
+    this.projectiles.clear(true,true);
+    this.comboText.setText(`${reason} — DEFEATED`).setScale(1.18);
+    this.cameras.main.shake(180,.008);
+    this.cameras.main.fadeOut(420,20,5,22);
+    this.time.delayedCall(650,()=>this.resetPlayer());
   }
 
   resetPlayer(){
     this.isRespawning=true;
     this.playerHealth=this.hunter.health;
-    this.player.setPosition(this.checkpointX,this.checkpointY-18);this.player.setVelocity(0);this.player.clearTint();
-    this.sync=0;this.lastSafeX=this.checkpointX;this.lastSafeY=this.checkpointY;
-    this.cameras.main.fadeIn(260,10,6,25);this.comboText.setText('RECOVER!');
-    this.time.delayedCall(700,()=>{this.isRespawning=false;this.comboText.setText('');});
+    this.player.setPosition(this.checkpointX,this.checkpointY);this.player.setVelocity(0);this.player.clearTint();this.player.setAlpha(.65);
+    this.sync=0;this.lastSafeX=this.checkpointX;this.lastSafeY=this.checkpointY;this.lastPlayerHit=this.time.now;
+    this.cameras.main.fadeIn(320,10,6,25);this.comboText.setText('CHECKPOINT');this.comboText.setScale(1);
+    this.time.delayedCall(650,()=>{this.player.setAlpha(1);this.isRespawning=false;this.isDefeated=false;this.comboText.setText('');});
   }
 
   updateHUD(){
