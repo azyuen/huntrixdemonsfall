@@ -19,7 +19,7 @@ export function installVisualArt(GameScene){
     if(scene.characterId!=='rumi'||!scene.player?.active)return;
     const ghost=scene.add.image(scene.player.x,scene.player.y,'rumi_sheet',Number(scene.player.frame.name)||0)
       .setDisplaySize(scene.player.displayWidth,scene.player.displayHeight).setFlipX(scene.player.flipX).setAngle(scene.player.angle)
-      .setBlendMode(Phaser.BlendModes.SCREEN).setAlpha(alpha).setTint(0xb8a7ff).setDepth(17);
+      .setAlpha(alpha).setTint(0xb8a7ff).setDepth(17);
     scene.tweens.add({targets:ghost,alpha:0,scaleX:ghost.scaleX*1.06,scaleY:ghost.scaleY*.96,duration:180,onComplete:()=>ghost.destroy()});
   };
   const attackSpark=(scene,finisher=false)=>{
@@ -31,24 +31,45 @@ export function installVisualArt(GameScene){
 
   GameScene.prototype.create=function(...args){
     originalCreate.apply(this,args);
+
+    // Remove legacy procedural skyline pieces.
     this.children.list.slice().forEach(obj=>{if(obj!==this.player&&obj.depth<0)obj.destroy();});
+
+    // Always cover the entire camera with our own dark backdrop first.
+    // This prevents the large iOS/WebGL grey clear-area seen on mobile.
+    this.backdropBase=this.add.rectangle(this.scale.width/2,this.scale.height/2,this.scale.width,this.scale.height,0x09051a,1)
+      .setScrollFactor(0).setDepth(-120);
+
+    // Keep the illustrated Seoul skyline in the upper/middle part of the frame.
+    // The dark lower section reads naturally behind the playable rooftops.
     if(this.textures.exists('seoulSky')){
-      this.backdrop=this.add.image(this.scale.width/2,this.scale.height/2,'seoulSky')
-        .setDisplaySize(this.scale.width,this.scale.height).setScrollFactor(0).setDepth(-100);
-      this.backdrop.setTint(0xd8d9ff);
-      this.backdropWash=this.add.rectangle(this.scale.width/2,this.scale.height/2,this.scale.width,this.scale.height,0x100b26,.16)
-        .setScrollFactor(0).setDepth(-99);
+      this.backdrop=this.add.image(this.scale.width/2,265,'seoulSky')
+        .setDisplaySize(this.scale.width,560).setScrollFactor(0).setDepth(-110);
+      this.backdrop.setTint(0xe5e4ff);
+      this.backdropWash=this.add.rectangle(this.scale.width/2,this.scale.height/2,this.scale.width,this.scale.height,0x100b26,.12)
+        .setScrollFactor(0).setDepth(-105);
     }
+
     this.platforms?.getChildren().forEach((p,i)=>{
       p.setFillStyle?.(i%3===0?0x111426:0x17172b,1);p.setStrokeStyle?.(2,0x66577b,.82);
       this.add.rectangle(p.x,p.y-p.height/2+3,Math.max(12,p.width-8),6,0x866c8e,.82).setDepth(3);
     });
+
     this._nextPetal=0;this._wasGrounded=false;this._lastRumiGhost=0;this._rumiAttackLockUntil=0;
-    this.player.setDepth(20);
+    this.player.setDepth(20).setVisible(true).setAlpha(1).clearTint();
+
     if(this.characterId==='rumi'&&this.textures.exists('rumi_sheet')){
-      this.player.setTexture('rumi_sheet',rumiFrames.idle).setDisplaySize(240,114).setOrigin(.5,.72)
-        .setBlendMode(Phaser.BlendModes.SCREEN);
-      this.player.body.setSize(31,66,true);this.player.body.setOffset(80,18);setRumiFrame(this,'idle');
+      // rumi_sheet already has a real alpha channel, so NORMAL blend is required.
+      // SCREEN blend was making her disappear on iOS.
+      this.player.setTexture('rumi_sheet',rumiFrames.idle)
+        .setDisplaySize(240,114)
+        .setOrigin(.5,.72)
+        .setBlendMode(Phaser.BlendModes.NORMAL)
+        .setVisible(true)
+        .setAlpha(1);
+      this.player.body.setSize(31,66,true);
+      this.player.body.setOffset(80,18);
+      setRumiFrame(this,'idle');
     }else{
       this.player.setTexture(this.characterId);
       this.player.setDisplaySize(this.characterId==='mira'?86:74,this.characterId==='mira'?112:94);
@@ -62,7 +83,7 @@ export function installVisualArt(GameScene){
   };
   GameScene.prototype.performAttack=function(time){
     originalPerformAttack.call(this,time);const pose=this.comboStep===0?'attack1':this.comboStep===1?'attack2':'finisher';
-    if(setRumiFrame(this,pose)){this._rumiAttackLockUntil=time+(this.hunter.attackDuration[this.comboStep]||260);this.player.setAngle(this.comboStep===2?0:this.lastFacing*-.8);attackSpark(this,this.comboStep===2);makeAfterImage(this,this.comboStep===2?.34:.2);}
+    if(setRumiFrame(this,pose)){this.player.setVisible(true).setAlpha(1).setBlendMode(Phaser.BlendModes.NORMAL);this._rumiAttackLockUntil=time+(this.hunter.attackDuration[this.comboStep]||260);this.player.setAngle(this.comboStep===2?0:this.lastFacing*-.8);attackSpark(this,this.comboStep===2);makeAfterImage(this,this.comboStep===2?.34:.2);}
     else{const key=`${this.characterId}_${pose}`;if(this.textures.exists(key))this.player.setTexture(key);}
   };
   GameScene.prototype.hitEnemy=function(e,damage,step,buildSync=false){
@@ -78,6 +99,7 @@ export function installVisualArt(GameScene){
     if(time>this._nextPetal){this._nextPetal=time+Phaser.Math.Between(650,1100);const cam=this.cameras.main,px=cam.scrollX+cam.width+30,py=Phaser.Math.Between(120,500);const petal=this.add.ellipse(px,py,9,4,0xffa7cf,.5).setDepth(10);this.tweens.add({targets:petal,x:px-Phaser.Math.Between(240,390),y:py+Phaser.Math.Between(30,90),angle:180,alpha:0,duration:Phaser.Math.Between(1800,2500),onComplete:()=>petal.destroy()});}
     if(this.player?.active){
       this.player.setFlipX(this.lastFacing<0);const grounded=this.player.body.blocked.down||this.player.body.touching.down;
+      if(this.characterId==='rumi')this.player.setBlendMode(Phaser.BlendModes.NORMAL).setVisible(true);
       if(grounded&&!this._wasGrounded&&this.characterId==='rumi'){const dust=this.add.ellipse(this.player.x,this.player.y+31,58,12,0xc7b5d9,.18).setDepth(15);this.tweens.add({targets:dust,scaleX:1.45,alpha:0,duration:200,onComplete:()=>dust.destroy()});}
       this._wasGrounded=grounded;
       if(this.characterId==='rumi'&&this.textures.exists('rumi_sheet')){
