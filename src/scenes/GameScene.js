@@ -26,15 +26,30 @@ export default class GameScene extends Phaser.Scene {
   }
   update(time){
     if(this.player.y>820){this.player.setPosition(Math.max(120,this.player.x-120),360);this.player.setVelocity(0);}
+    const grounded=this.player.body.blocked.down||this.player.body.touching.down;
     const kb=(this.cursors.left.isDown||this.keys.A.isDown?-1:0)+(this.cursors.right.isDown||this.keys.D.isDown?1:0),axis=kb||this.touch.axis;
-    if(!this.isAttacking){if(axis){this.lastFacing=Math.sign(axis);this.player.setVelocityX(axis*GAMEPLAY.moveSpeed);}else this.player.setVelocityX(0);}
-    const grounded=this.player.body.blocked.down||this.player.body.touching.down,jump=Phaser.Input.Keyboard.JustDown(this.cursors.up)||Phaser.Input.Keyboard.JustDown(this.keys.W)||Phaser.Input.Keyboard.JustDown(this.keys.SPACE)||this.touch.consume('jump');if(jump&&grounded&&!this.isAttacking)this.player.setVelocityY(-GAMEPLAY.jumpSpeed);
+
+    // Movement remains live through jumps, landings and attacks.
+    if(axis){
+      this.lastFacing=Math.sign(axis);
+      this.player.setVelocityX(axis*GAMEPLAY.moveSpeed);
+    }else if(grounded&&!this.isAttacking){
+      this.player.setVelocityX(0);
+    }
+
+    const jump=Phaser.Input.Keyboard.JustDown(this.cursors.up)||Phaser.Input.Keyboard.JustDown(this.keys.W)||Phaser.Input.Keyboard.JustDown(this.keys.SPACE)||this.touch.consume('jump');
+    if(jump&&grounded)this.player.setVelocityY(-GAMEPLAY.jumpSpeed);
+
     const dodge=Phaser.Input.Keyboard.JustDown(this.keys.K)||this.touch.consume('dodge');if(dodge&&time-this.lastDodge>=GAMEPLAY.dodgeCooldown){this.lastDodge=time;this.isAttacking=false;this.player.setVelocityX(this.lastFacing*GAMEPLAY.dodgeSpeed);this.player.setAlpha(.5);this.time.delayedCall(GAMEPLAY.dodgeDuration,()=>this.player.setAlpha(1));}
     if((Phaser.Input.Keyboard.JustDown(this.keys.J)||this.touch.consume('attack'))&&!this.isAttacking)this.performAttack(time);
     this.updateEnemies(time);this.updateHUD();
   }
   performAttack(time){
-    if(time-this.lastAttack>GAMEPLAY.comboReset)this.comboStep=0;else this.comboStep=(this.comboStep+1)%3;this.lastAttack=time;const step=this.comboStep;this.isAttacking=true;this.player.setVelocityX(this.lastFacing*(step===2?105:55));
+    if(time-this.lastAttack>GAMEPLAY.comboReset)this.comboStep=0;else this.comboStep=(this.comboStep+1)%3;this.lastAttack=time;const step=this.comboStep;this.isAttacking=true;
+
+    // If Rumi is already running, preserve that momentum. From rest, give only a small attack lunge.
+    if(Math.abs(this.player.body.velocity.x)<80)this.player.setVelocityX(this.lastFacing*(step===2?105:55));
+
     const reach=GAMEPLAY.attackReach[step],hitX=this.player.x+this.lastFacing*(42+reach/2),slash=this.add.rectangle(hitX,this.player.y-4,reach,68,step===2?0xffd5ff:0xb68cff,.25).setDepth(25);slash.setStrokeStyle(step===2?6:4,step===2?0xffffff:0xd8baff,.85);this.tweens.add({targets:slash,alpha:0,scaleX:1.25,duration:GAMEPLAY.attackDuration[step],onComplete:()=>slash.destroy()});
     this.enemies.getChildren().forEach(e=>{if(e.dead)return;const dx=e.x-this.player.x,inFront=Math.sign(dx)===this.lastFacing||Math.abs(dx)<30;if(inFront&&Math.abs(dx)<=reach+48&&Math.abs(e.y-this.player.y)<85)this.hitEnemy(e,GAMEPLAY.attackDamage[step],step);});
     this.comboText.setText(step===0?'STRIKE':step===1?'STRIKE ×2':'FINISHER!');this.time.delayedCall(GAMEPLAY.attackDuration[step],()=>this.isAttacking=false);this.time.delayedCall(650,()=>{if(time===this.lastAttack)this.comboText.setText('');});
