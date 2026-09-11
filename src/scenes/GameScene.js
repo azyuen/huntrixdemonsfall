@@ -18,16 +18,16 @@ export default class GameScene extends Phaser.Scene {
     this.add.text(620,75,'SEOUL // DEMON DISTRICT',{fontFamily:'system-ui',fontSize:'22px',color:'#bba7ff'}).setScrollFactor(.35);
 
     this.platforms=this.physics.add.staticGroup();
+    this.platformSpecs=[
+      [500,560,1000,40],[1250,520,360,40],[1660,455,330,40],[2050,540,360,40],[2500,465,420,40],
+      [3010,530,450,40],[3540,440,400,40],[4020,550,360,40],[4480,500,460,40],[5000,430,380,40],
+      [5480,540,520,40],[6080,470,430,40],[6610,530,420,40],[7160,455,430,40],[7600,540,420,40]
+    ];
     const platform=(x,y,w,h=40)=>{
       const r=this.add.rectangle(x,y,w,h,0x33265d).setStrokeStyle(3,0x66508f);
       this.physics.add.existing(r,true);this.platforms.add(r);
     };
-
-    [
-      [500,560,1000],[1250,520,360],[1660,455,330],[2050,540,360],[2500,465,420],
-      [3010,530,450],[3540,440,400],[4020,550,360],[4480,500,460],[5000,430,380],
-      [5480,540,520],[6080,470,430],[6610,530,420],[7160,455,430],[7600,540,420]
-    ].forEach(p=>platform(...p));
+    this.platformSpecs.forEach(p=>platform(...p));
 
     this.player=this.physics.add.sprite(180,430,this.hunter.texture).setCollideWorldBounds(false);
     this.player.body.setSize(Math.max(34,this.player.width-4),Math.max(72,this.player.height-4));
@@ -38,6 +38,8 @@ export default class GameScene extends Phaser.Scene {
     this.isAttacking=false;this.comboStep=0;this.lastAttack=-9999;
     this.sync=0;this.maxSync=100;this.supportIndex=0;
     this.isRespawning=false;this.lastSafeX=180;this.lastSafeY=430;
+    this.checkpointX=180;this.checkpointY=430;
+    this.airDodgeUsed=false;
 
     this.enemies=this.physics.add.group();
     this.projectiles=this.physics.add.group();
@@ -74,11 +76,27 @@ export default class GameScene extends Phaser.Scene {
     this.syncText=this.add.text(780,92,'SYNC 0%  •  build with hits',{fontFamily:'system-ui',fontSize:'14px',fontStyle:'bold',color:'#fff'}).setOrigin(.5).setScrollFactor(0).setDepth(122);
   }
 
+  findPlatformAt(x){
+    return this.platformSpecs.find(([px,py,pw])=>x>=px-pw/2&&x<=px+pw/2)||null;
+  }
+
   spawnEnemy(type,x,y){
     const stats=GAMEPLAY.enemies[type]||GAMEPLAY.enemies.grunt;
     const e=this.add.rectangle(x,y,stats.width,stats.height,stats.color).setStrokeStyle(4,stats.outline);
     this.physics.add.existing(e);e.body.setSize(stats.width,stats.height);
     e.type=type;e.stats=stats;e.health=stats.health;e.maxHealth=stats.health;e.lastAttack=-9999;e.dead=false;e.hitUntil=0;
+
+    const p=this.findPlatformAt(x);
+    if(p){
+      const [px,py,pw,ph]=p;
+      e.platformLeft=px-pw/2+stats.width/2+10;
+      e.platformRight=px+pw/2-stats.width/2-10;
+      e.spawnX=Phaser.Math.Clamp(x,e.platformLeft,e.platformRight);
+      e.spawnY=py-ph/2-stats.height/2-2;
+    }else{
+      e.platformLeft=x-80;e.platformRight=x+80;e.spawnX=x;e.spawnY=y;
+    }
+
     this.enemies.add(e);
     e.hpBg=this.add.rectangle(x,y-stats.height/2-16,Math.max(58,stats.width+12),8,0x160e20).setDepth(30);
     e.hpBar=this.add.rectangle(x-Math.max(56,stats.width+10)/2,y-stats.height/2-16,Math.max(56,stats.width+10),5,stats.outline).setOrigin(0,.5).setDepth(31);
@@ -88,7 +106,10 @@ export default class GameScene extends Phaser.Scene {
   update(time){
     if(this.isRespawning){this.updateHUD();return;}
     const grounded=this.player.body.blocked.down||this.player.body.touching.down;
-    if(grounded){this.lastSafeX=this.player.x;this.lastSafeY=this.player.y;}
+    if(grounded){
+      this.lastSafeX=this.player.x;this.lastSafeY=this.player.y;this.airDodgeUsed=false;
+      if(this.player.x>this.checkpointX+900){this.checkpointX=this.player.x;this.checkpointY=this.player.y;}
+    }
     if(this.player.y>790){this.handleFall();this.updateHUD();return;}
 
     const kb=(this.cursors.left.isDown||this.keys.A.isDown?-1:0)+(this.cursors.right.isDown||this.keys.D.isDown?1:0);
@@ -100,8 +121,20 @@ export default class GameScene extends Phaser.Scene {
 
     const dodge=Phaser.Input.Keyboard.JustDown(this.keys.K)||this.touch.consume('dodge');
     if(dodge&&time-this.lastDodge>=GAMEPLAY.dodgeCooldown){
-      this.lastDodge=time;this.isAttacking=false;this.player.setVelocityX(this.lastFacing*this.hunter.dodgeSpeed);this.player.setAlpha(.5);
-      this.time.delayedCall(GAMEPLAY.dodgeDuration,()=>this.player.setAlpha(1));
+      if(!grounded&&this.airDodgeUsed){/* one aerial blitz per jump */}
+      else{
+        this.lastDodge=time;this.isAttacking=false;
+        if(!grounded){
+          this.airDodgeUsed=true;
+          this.player.setVelocityX(this.lastFacing*this.hunter.dodgeSpeed*.9);
+          this.player.setTint(0x9de8ff);
+          this.time.delayedCall(GAMEPLAY.dodgeDuration,()=>this.player.clearTint());
+        }else{
+          this.player.setVelocityX(this.lastFacing*this.hunter.dodgeSpeed);
+        }
+        this.player.setAlpha(.5);
+        this.time.delayedCall(GAMEPLAY.dodgeDuration,()=>this.player.setAlpha(1));
+      }
     }
 
     if((Phaser.Input.Keyboard.JustDown(this.keys.J)||this.touch.consume('attack'))&&!this.isAttacking)this.performAttack(time);
@@ -232,30 +265,47 @@ export default class GameScene extends Phaser.Scene {
     this.tweens.add({targets:e,alpha:0,scaleX:1.5,scaleY:.4,duration:240,onComplete:()=>e.destroy()});
   }
 
+  keepEnemyOnPlatform(e,velocityX){
+    if(e.y>760){
+      e.setPosition(e.spawnX,e.spawnY);e.body.setVelocity(0);return 0;
+    }
+    if(e.x<e.platformLeft){e.x=e.platformLeft;e.body.setVelocityX(0);return Math.max(0,velocityX);}
+    if(e.x>e.platformRight){e.x=e.platformRight;e.body.setVelocityX(0);return Math.min(0,velocityX);}
+    if(velocityX<0&&e.x<=e.platformLeft+8)return 0;
+    if(velocityX>0&&e.x>=e.platformRight-8)return 0;
+    return velocityX;
+  }
+
   updateEnemies(time){
     this.enemies.getChildren().forEach(e=>{
       if(e.dead)return;
       const top=e.y-e.stats.height/2;
       e.hpBg.setPosition(e.x,top-16);e.label.setPosition(e.x,top-34);
       const w=Math.max(56,e.stats.width+10);e.hpBar.setPosition(e.x-w/2,top-16);e.hpBar.width=w*Math.max(0,e.health/e.maxHealth);
-      if(time<e.hitUntil)return;
+
+      if(e.y>760){this.keepEnemyOnPlatform(e,0);return;}
+      if(time<e.hitUntil){
+        e.body.setVelocityX(this.keepEnemyOnPlatform(e,e.body.velocity.x));
+        return;
+      }
 
       const dx=this.player.x-e.x,dy=Math.abs(this.player.y-e.y),dist=Math.abs(dx);
       if(dist>GAMEPLAY.enemyAggroRange||dy>130){e.body.setVelocityX(0);return;}
 
+      let desired=0;
       if(e.type==='ranged'){
-        if(dist<190)e.body.setVelocityX(-Math.sign(dx)*e.stats.speed);
-        else if(dist>e.stats.range)e.body.setVelocityX(Math.sign(dx)*e.stats.speed);
-        else e.body.setVelocityX(0);
+        if(dist<190)desired=-Math.sign(dx)*e.stats.speed;
+        else if(dist>e.stats.range)desired=Math.sign(dx)*e.stats.speed;
+        desired=this.keepEnemyOnPlatform(e,desired);
+        e.body.setVelocityX(desired);
         if(dist<=e.stats.range&&time-e.lastAttack>e.stats.cooldown){e.lastAttack=time;this.fireWraithShot(e);}
         return;
       }
 
-      if(dist>e.stats.range)e.body.setVelocityX(Math.sign(dx)*e.stats.speed);
-      else{
-        e.body.setVelocityX(0);
-        if(time-e.lastAttack>e.stats.cooldown){e.lastAttack=time;this.enemyMeleeAttack(e,time);}
-      }
+      if(dist>e.stats.range)desired=Math.sign(dx)*e.stats.speed;
+      desired=this.keepEnemyOnPlatform(e,desired);
+      e.body.setVelocityX(desired);
+      if(dist<=e.stats.range&&time-e.lastAttack>e.stats.cooldown){e.lastAttack=time;this.enemyMeleeAttack(e,time);}
     });
   }
 
@@ -291,8 +341,11 @@ export default class GameScene extends Phaser.Scene {
   }
 
   resetPlayer(){
-    this.playerHealth=this.hunter.health;this.player.setPosition(180,430);this.player.setVelocity(0);this.player.clearTint();
-    this.sync=0;this.lastSafeX=180;this.lastSafeY=430;this.cameras.main.fadeIn(260,10,6,25);this.comboText.setText('RECOVER!');
+    this.isRespawning=true;
+    this.playerHealth=this.hunter.health;
+    this.player.setPosition(this.checkpointX,this.checkpointY-18);this.player.setVelocity(0);this.player.clearTint();
+    this.sync=0;this.lastSafeX=this.checkpointX;this.lastSafeY=this.checkpointY;
+    this.cameras.main.fadeIn(260,10,6,25);this.comboText.setText('RECOVER!');
     this.time.delayedCall(700,()=>{this.isRespawning=false;this.comboText.setText('');});
   }
 
