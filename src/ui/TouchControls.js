@@ -5,28 +5,40 @@ export default class TouchControls {
     const h=scene.scale.height;
     const w=scene.scale.width;
 
-    this.centerX=175;
-    this.centerY=h-145;
+    this.centerX=155;
+    this.centerY=h-125;
 
-    this.base=scene.add.circle(this.centerX,this.centerY,76,0xffffff,.12)
-      .setScrollFactor(0).setDepth(100).setInteractive();
-    this.knob=scene.add.circle(this.centerX,this.centerY,36,0xffffff,.28)
-      .setScrollFactor(0).setDepth(101);
+    this.base=scene.add.circle(this.centerX,this.centerY,68,0x0b1020,.46)
+      .setStrokeStyle(3,0xd8dcff,.72).setScrollFactor(0).setDepth(100).setInteractive();
+    this.knob=scene.add.circle(this.centerX,this.centerY,34,0xd9dbe8,.45)
+      .setStrokeStyle(2,0xffffff,.36).setScrollFactor(0).setDepth(101);
 
-    const buttonY=h-140;
-    const rightInset=165;
-    const gap=125;
-    const bind=(x,y,label,cb,scale=1)=>{
-      const b=scene.add.image(x,y,'button').setScale(scale).setScrollFactor(0).setDepth(100).setInteractive();
-      scene.add.text(x,y,label,{fontFamily:'system-ui',fontSize:scale<1?'15px':'17px',fontStyle:'bold',color:'#fff'})
+    const addChevron=(x,y,txt)=>scene.add.text(x,y,txt,{fontFamily:'system-ui',fontSize:'24px',fontStyle:'bold',color:'#dce1ff'})
+      .setOrigin(.5).setScrollFactor(0).setDepth(102).setAlpha(.72);
+    addChevron(this.centerX-47,this.centerY,'‹');
+    addChevron(this.centerX+47,this.centerY,'›');
+
+    const btn=(x,y,label,cb,{r=45,accent=0x91a7ff,glow=false,icon='' }={})=>{
+      const halo=glow?scene.add.circle(x,y,r+9,accent,.13).setScrollFactor(0).setDepth(98):null;
+      if(halo)scene.tweens.add({targets:halo,scale:1.08,alpha:.05,duration:700,yoyo:true,repeat:-1});
+      const b=scene.add.circle(x,y,r,0x0b1020,.74).setStrokeStyle(3,glow?0xffc64b:0xdfe5ff,.78)
+        .setScrollFactor(0).setDepth(100).setInteractive();
+      if(icon)scene.add.text(x,y-8,icon,{fontFamily:'system-ui',fontSize:r>48?'27px':'23px',fontStyle:'bold',color:glow?'#ffd65c':'#cdd8ff'})
         .setOrigin(.5).setScrollFactor(0).setDepth(101);
-      b.on('pointerdown',cb);
+      scene.add.text(x,y+(icon?20:0),label,{fontFamily:'system-ui',fontSize:r>48?'13px':'12px',fontStyle:'bold',color:'#ffffff',align:'center'})
+        .setOrigin(.5).setScrollFactor(0).setDepth(101);
+      b.on('pointerdown',()=>{b.setScale(.94);cb();});
+      b.on('pointerup',()=>b.setScale(1));
+      b.on('pointerout',()=>b.setScale(1));
+      return b;
     };
 
-    bind(w-rightInset,buttonY,'ATTACK',()=>this.attack=true);
-    bind(w-rightInset-gap,buttonY,'JUMP',()=>this.jump=true);
-    bind(w-rightInset-gap*2,buttonY,'DODGE',()=>this.dodge=true);
-    bind(w-rightInset-gap,buttonY-118,'SYNC',()=>this.sync=true,.82);
+    const attackX=w-120;
+    const attackY=h-105;
+    btn(attackX,attackY,'ATTACK',()=>this.attack=true,{r:45,icon:'⚔'});
+    btn(attackX-125,attackY+4,'JUMP',()=>this.jump=true,{r:42,icon:'↑'});
+    btn(attackX+5,attackY-125,'DODGE',()=>this.dodge=true,{r:42,icon:'➜'});
+    btn(attackX+105,attackY-12,'SYNC\nATTACK',()=>this.sync=true,{r:56,accent:0xffba31,glow:true,icon:'✦'});
 
     this.base.on('pointerdown',p=>{
       if(this.joystickPointerId===null)this.joystickPointerId=p.id;
@@ -42,9 +54,9 @@ export default class TouchControls {
   }
 
   moveStick(p){
-    const dx=Phaser.Math.Clamp(p.x-this.centerX,-60,60);
+    const dx=Phaser.Math.Clamp(p.x-this.centerX,-52,52);
     this.knob.x=this.centerX+dx;
-    this.axis=Math.abs(dx)<12?0:dx/60;
+    this.axis=Math.abs(dx)<10?0:dx/52;
   }
 
   reset(){
