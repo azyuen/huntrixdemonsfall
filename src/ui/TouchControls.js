@@ -1,51 +1,52 @@
 export default class TouchControls {
   constructor(scene){
-    this.scene=scene; this.axis=0; this.jump=false; this.dodge=false; this.attack=false; this.sync=false;
+    this.scene=scene;
+    this.axis=0; this.jump=false; this.dodge=false; this.attack=false; this.sync=false;
     this.joystickPointerId=null;
+    this.uiZoom=1;
+    this.nodes=[];
+
     const h=scene.scale.height;
     const w=scene.scale.width;
 
-    /*
-      These controls are rendered by the main Phaser camera. Because the gameplay camera
-      is zoomed, screen-fixed objects also appear farther from the centre. The coordinates
-      below deliberately sit well inside the logical 1280x720 canvas so the final controls
-      land in a comfortable thumb zone instead of being clipped by phone edges/notches.
-    */
-    this.centerX=330;
-    this.centerY=h-200;
+    // Desired positions are SCREEN positions in the logical 1280x720 canvas.
+    // layoutForZoom() converts these to world positions so camera zoom cannot push
+    // the controls toward / off the phone edges.
+    this.joyScreenX=235;
+    this.joyScreenY=h-155;
 
-    this.base=scene.add.circle(this.centerX,this.centerY,64,0x0b1020,.46)
-      .setStrokeStyle(3,0xd8dcff,.72).setScrollFactor(0).setDepth(100).setInteractive();
-    this.knob=scene.add.circle(this.centerX,this.centerY,32,0xd9dbe8,.45)
-      .setStrokeStyle(2,0xffffff,.36).setScrollFactor(0).setDepth(101);
+    this.base=scene.add.circle(this.joyScreenX,this.joyScreenY,58,0x0b1020,.48)
+      .setStrokeStyle(3,0xd8dcff,.76).setScrollFactor(0).setDepth(100).setInteractive();
+    this.knob=scene.add.circle(this.joyScreenX,this.joyScreenY,29,0xd9dbe8,.48)
+      .setStrokeStyle(2,0xffffff,.38).setScrollFactor(0).setDepth(101);
+    this.leftChevron=scene.add.text(this.joyScreenX-42,this.joyScreenY,'‹',{fontFamily:'system-ui',fontSize:'22px',fontStyle:'bold',color:'#dce1ff'})
+      .setOrigin(.5).setScrollFactor(0).setDepth(102).setAlpha(.68);
+    this.rightChevron=scene.add.text(this.joyScreenX+42,this.joyScreenY,'›',{fontFamily:'system-ui',fontSize:'22px',fontStyle:'bold',color:'#dce1ff'})
+      .setOrigin(.5).setScrollFactor(0).setDepth(102).setAlpha(.68);
 
-    const addChevron=(x,y,txt)=>scene.add.text(x,y,txt,{fontFamily:'system-ui',fontSize:'22px',fontStyle:'bold',color:'#dce1ff'})
-      .setOrigin(.5).setScrollFactor(0).setDepth(102).setAlpha(.70);
-    addChevron(this.centerX-44,this.centerY,'‹');
-    addChevron(this.centerX+44,this.centerY,'›');
-
-    const btn=(x,y,label,cb,{r=43,accent=0x91a7ff,glow=false,icon='' }={})=>{
-      const halo=glow?scene.add.circle(x,y,r+8,accent,.13).setScrollFactor(0).setDepth(98):null;
+    const makeButton=(screenX,screenY,label,cb,{r=41,accent=0x91a7ff,glow=false,icon=''}={})=>{
+      const halo=glow?scene.add.circle(screenX,screenY,r+8,accent,.13).setScrollFactor(0).setDepth(98):null;
       if(halo)scene.tweens.add({targets:halo,scale:1.08,alpha:.05,duration:700,yoyo:true,repeat:-1});
-      const b=scene.add.circle(x,y,r,0x0b1020,.74).setStrokeStyle(3,glow?0xffc64b:0xdfe5ff,.78)
-        .setScrollFactor(0).setDepth(100).setInteractive();
-      if(icon)scene.add.text(x,y-8,icon,{fontFamily:'system-ui',fontSize:r>48?'26px':'22px',fontStyle:'bold',color:glow?'#ffd65c':'#cdd8ff'})
+      const circle=scene.add.circle(screenX,screenY,r,0x0b1020,.76)
+        .setStrokeStyle(3,glow?0xffc64b:0xdfe5ff,.82).setScrollFactor(0).setDepth(100).setInteractive();
+      const iconText=icon?scene.add.text(screenX,screenY-8,icon,{fontFamily:'system-ui',fontSize:r>46?'25px':'21px',fontStyle:'bold',color:glow?'#ffd65c':'#cdd8ff'})
+        .setOrigin(.5).setScrollFactor(0).setDepth(101):null;
+      const labelText=scene.add.text(screenX,screenY+(icon?18:0),label,{fontFamily:'system-ui',fontSize:r>46?'12px':'11px',fontStyle:'bold',color:'#ffffff',align:'center'})
         .setOrigin(.5).setScrollFactor(0).setDepth(101);
-      scene.add.text(x,y+(icon?19:0),label,{fontFamily:'system-ui',fontSize:r>48?'12px':'11px',fontStyle:'bold',color:'#ffffff',align:'center'})
-        .setOrigin(.5).setScrollFactor(0).setDepth(101);
-      b.on('pointerdown',()=>{b.setScale(.94);cb();});
-      b.on('pointerup',()=>b.setScale(1));
-      b.on('pointerout',()=>b.setScale(1));
-      return b;
+      const node={screenX,screenY,circle,halo,iconText,labelText};
+      this.nodes.push(node);
+      circle.on('pointerdown',()=>{circle.setScale((circle._uiScale||1)*.94);cb();});
+      const release=()=>circle.setScale(circle._uiScale||1);
+      circle.on('pointerup',release); circle.on('pointerout',release);
+      return node;
     };
 
-    // Compact diamond cluster, substantially inset from the right and bottom edges.
-    const attackX=w-360;
-    const attackY=h-205;
-    btn(attackX,attackY,'ATTACK',()=>this.attack=true,{r:43,icon:'⚔'});
-    btn(attackX-105,attackY+8,'JUMP',()=>this.jump=true,{r:41,icon:'↑'});
-    btn(attackX+2,attackY-100,'DODGE',()=>this.dodge=true,{r:41,icon:'➜'});
-    btn(attackX+102,attackY-20,'SYNC\nATTACK',()=>this.sync=true,{r:50,accent:0xffba31,glow:true,icon:'✦'});
+    // Compact diamond cluster, deliberately well inside the right edge.
+    // Sync now sits fully on-screen rather than hanging off the bezel.
+    this.attackNode=makeButton(w-290,h-165,'ATTACK',()=>this.attack=true,{r:41,icon:'⚔'});
+    this.jumpNode=makeButton(w-390,h-155,'JUMP',()=>this.jump=true,{r:39,icon:'↑'});
+    this.dodgeNode=makeButton(w-290,h-265,'DODGE',()=>this.dodge=true,{r:39,icon:'➜'});
+    this.syncNode=makeButton(w-190,h-185,'SYNC\nATTACK',()=>this.sync=true,{r:48,accent:0xffba31,glow:true,icon:'✦'});
 
     this.base.on('pointerdown',p=>{
       if(this.joystickPointerId===null)this.joystickPointerId=p.id;
@@ -60,16 +61,54 @@ export default class TouchControls {
     scene.input.on('gameout',()=>this.reset());
   }
 
+  worldFromScreen(screenX,screenY,zoom){
+    const cx=this.scene.scale.width/2;
+    const cy=this.scene.scale.height/2;
+    return {
+      x:cx+(screenX-cx)/zoom,
+      y:cy+(screenY-cy)/zoom
+    };
+  }
+
+  layoutForZoom(zoom=1){
+    this.uiZoom=zoom;
+    const inv=1/zoom;
+
+    const joy=this.worldFromScreen(this.joyScreenX,this.joyScreenY,zoom);
+    this.centerX=joy.x; this.centerY=joy.y;
+    this.base.setPosition(joy.x,joy.y).setScale(inv);
+    this.base._uiScale=inv;
+    this.knob.setPosition(joy.x,joy.y).setScale(inv);
+
+    const lc=this.worldFromScreen(this.joyScreenX-42,this.joyScreenY,zoom);
+    const rc=this.worldFromScreen(this.joyScreenX+42,this.joyScreenY,zoom);
+    this.leftChevron.setPosition(lc.x,lc.y).setScale(inv);
+    this.rightChevron.setPosition(rc.x,rc.y).setScale(inv);
+
+    this.nodes.forEach(node=>{
+      const p=this.worldFromScreen(node.screenX,node.screenY,zoom);
+      node.circle.setPosition(p.x,p.y).setScale(inv); node.circle._uiScale=inv;
+      if(node.halo){node.halo.setPosition(p.x,p.y);node.halo.setScale(inv);}
+      if(node.iconText){node.iconText.setPosition(p.x,p.y-8/zoom).setScale(inv);}
+      node.labelText.setPosition(p.x,p.y+(node.iconText?18/zoom:0)).setScale(inv);
+    });
+    this.reset();
+  }
+
   moveStick(p){
+    // Pointer coordinates are screen-space. Compare against the joystick's SCREEN centre,
+    // not its zoom-compensated world coordinate. This fixes the right->left reversal.
     const px=p.position?.x ?? p.x;
-    const dx=Phaser.Math.Clamp(px-this.centerX,-50,50);
-    this.knob.x=this.centerX+dx;
-    this.axis=Math.abs(dx)<10?0:dx/50;
+    const dx=Phaser.Math.Clamp(px-this.joyScreenX,-48,48);
+    this.axis=Math.abs(dx)<9?0:dx/48;
+
+    // Convert the desired screen displacement back into the zoomed object's coordinates.
+    this.knob.x=this.centerX+dx/this.uiZoom;
   }
 
   reset(){
     this.axis=0;
-    this.knob.x=this.centerX;
+    if(this.knob&&Number.isFinite(this.centerX))this.knob.x=this.centerX;
     this.joystickPointerId=null;
   }
 
