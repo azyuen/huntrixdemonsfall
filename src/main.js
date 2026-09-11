@@ -10,15 +10,13 @@ import { installVisualArt } from './systems/VisualArtPatch.js';
 installRunSummary(GameScene);
 installVisualArt(GameScene);
 
-// Keep scene camera clears transparent so the illustrated Seoul art remains visible.
-Phaser.Cameras.Scene2D.Camera.prototype.setBackgroundColor = function(){ return this; };
-
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'app',
   width: GAMEPLAY.width,
   height: GAMEPLAY.height,
-  transparent: true,
+  transparent: false,
+  backgroundColor: '#09051a',
   input: { activePointers: 4 },
   physics: { default: 'arcade', arcade: { gravity: { y: GAMEPLAY.gravity }, debug: false } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
