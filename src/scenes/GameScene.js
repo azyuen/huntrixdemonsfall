@@ -30,10 +30,8 @@ export default class GameScene extends Phaser.Scene {
     };
     this.platformSpecs.forEach(p=>platform(...p));
 
-    // Make the boss rooftop visually read as a dedicated arena.
     this.add.rectangle(8350,514,1400,10,0x8b527d,.28).setDepth(2);
-    this.add.text(8350,460,'DREAD CAPTAIN ARENA',{fontFamily:'system-ui',fontSize:'18px',fontStyle:'bold',color:'#845f91'})
-      .setOrigin(.5).setAlpha(.65);
+    this.add.text(8350,460,'DREAD CAPTAIN ARENA',{fontFamily:'system-ui',fontSize:'18px',fontStyle:'bold',color:'#845f91'}).setOrigin(.5).setAlpha(.65);
 
     this.player=this.physics.add.sprite(180,430,this.hunter.texture).setCollideWorldBounds(false);
     this.player.body.setSize(Math.max(34,this.player.width-4),Math.max(72,this.player.height-4));
@@ -41,6 +39,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.playerHealth=this.hunter.health;
     this.lastPlayerHit=-9999;this.lastFacing=1;this.lastDodge=-9999;
+    this.dodgeInvulnerableUntil=-9999;
     this.isAttacking=false;this.comboStep=0;this.lastAttack=-9999;
     this.sync=0;this.maxSync=100;this.supportIndex=0;
     this.isRespawning=false;this.isDefeated=false;this.lastSafeX=180;this.lastSafeY=430;
@@ -131,12 +130,9 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.shake(260,.006);
     this.boss.setAlpha(1);this.boss.nextSpecial=this.time.now+1800;
     this.bossHudBg.setVisible(true);this.bossHudBar.setVisible(true);this.bossHudText.setVisible(true);
-
-    // Seal the rooftop behind the player so the fight has a clear dedicated space.
     this.bossGate=this.add.rectangle(GAMEPLAY.bossArena.left+8,345,22,390,0xb55a9b,.48).setDepth(18).setStrokeStyle(3,0xf2b4e1,.8);
     this.physics.add.existing(this.bossGate,true);this.physics.add.collider(this.player,this.bossGate);
     this.tweens.add({targets:this.bossGate,alpha:{from:.2,to:.62},duration:420,yoyo:true,repeat:-1});
-
     this.cameras.main.setBounds(GAMEPLAY.bossArena.left,0,GAMEPLAY.bossArena.right-GAMEPLAY.bossArena.left,720);
   }
 
@@ -164,9 +160,17 @@ export default class GameScene extends Phaser.Scene {
       if(!grounded&&this.airDodgeUsed){}
       else{
         this.lastDodge=time;this.isAttacking=false;
-        if(!grounded){this.airDodgeUsed=true;this.player.setVelocityX(this.lastFacing*this.hunter.dodgeSpeed*.9);this.player.setTint(0x9de8ff);this.time.delayedCall(GAMEPLAY.dodgeDuration,()=>this.player.clearTint());}
-        else this.player.setVelocityX(this.lastFacing*this.hunter.dodgeSpeed);
-        this.player.setAlpha(.5);this.time.delayedCall(GAMEPLAY.dodgeDuration,()=>this.player.setAlpha(1));
+        this.dodgeInvulnerableUntil=time+GAMEPLAY.dodgeDuration;
+        if(!grounded){
+          this.airDodgeUsed=true;
+          this.player.setVelocityX(this.lastFacing*this.hunter.dodgeSpeed*.9);
+          this.player.setTint(0x9de8ff);
+        }else{
+          this.player.setVelocityX(this.lastFacing*this.hunter.dodgeSpeed);
+          this.player.setTint(0xe7d8ff);
+        }
+        this.player.setAlpha(.42);
+        this.time.delayedCall(GAMEPLAY.dodgeDuration,()=>{this.player.clearTint();this.player.setAlpha(1);});
       }
     }
     if((Phaser.Input.Keyboard.JustDown(this.keys.J)||this.touch.consume('attack'))&&!this.isAttacking)this.performAttack(time);
@@ -304,7 +308,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   bossSlam(e){
-    e.actionUntil=this.time.now+1200;e.body.setVelocityX(0);this.flashSyncLabel('DREAD SLAM — JUMP!');
+    e.actionUntil=this.time.now+1200;e.body.setVelocityX(0);this.flashSyncLabel('DREAD SLAM — JUMP OR DODGE!');
     const ring=this.add.circle(e.x,e.y+45,55,0xe087b8,.12).setDepth(21).setStrokeStyle(7,0xffb8dd,.8);
     this.tweens.add({targets:ring,scale:4.8,alpha:.5,duration:560,ease:'Quad.Out'});
     this.time.delayedCall(570,()=>{
@@ -331,15 +335,39 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.existing(shot);shot.body.allowGravity=false;shot.body.setVelocityX(dir*330);shot.damage=e.stats.damage;this.projectiles.add(shot);this.time.delayedCall(2200,()=>{if(shot.active)shot.destroy();});
   }
 
-  hitPlayerFromProjectile(p){if(!p.active||this.isRespawning||this.isDefeated)return;const damage=p.damage||10;p.destroy();if(this.time.now-this.lastPlayerHit<GAMEPLAY.playerInvulnerability)return;this.damagePlayer(damage,0);}
-  damagePlayer(damage,knockback=0){if(this.isRespawning||this.isDefeated)return;this.lastPlayerHit=this.time.now;this.playerHealth=Math.max(0,this.playerHealth-damage);this.player.setTint(0xff7c9d);if(knockback)this.player.setVelocityX(knockback);this.cameras.main.shake(100,.006);this.time.delayedCall(180,()=>this.player.clearTint());if(this.playerHealth<=0)this.handleDefeat('DEMONS');}
+  evadeFeedback(){
+    this.flashSyncLabel('EVADE!');
+    const ring=this.add.circle(this.player.x,this.player.y,26,0xffffff,.05).setDepth(34).setStrokeStyle(4,0xbcefff,.9);
+    this.tweens.add({targets:ring,scale:2.1,alpha:0,duration:220,onComplete:()=>ring.destroy()});
+  }
+
+  hitPlayerFromProjectile(p){
+    if(!p.active||this.isRespawning||this.isDefeated)return;
+    const damage=p.damage||10;
+    if(this.time.now<=this.dodgeInvulnerableUntil){p.destroy();this.evadeFeedback();return;}
+    p.destroy();
+    if(this.time.now-this.lastPlayerHit<GAMEPLAY.playerInvulnerability)return;
+    this.damagePlayer(damage,0);
+  }
+
+  damagePlayer(damage,knockback=0){
+    if(this.isRespawning||this.isDefeated)return false;
+    if(this.time.now<=this.dodgeInvulnerableUntil){this.evadeFeedback();return false;}
+    this.lastPlayerHit=this.time.now;
+    this.playerHealth=Math.max(0,this.playerHealth-damage);
+    this.player.setTint(0xff7c9d);if(knockback)this.player.setVelocityX(knockback);
+    this.cameras.main.shake(100,.006);
+    this.time.delayedCall(180,()=>this.player.clearTint());
+    if(this.playerHealth<=0)this.handleDefeat('DEMONS');
+    return true;
+  }
 
   handleDefeat(reason='DEFEATED'){
     if(this.isDefeated)return;this.isDefeated=true;this.isRespawning=false;this.isAttacking=false;this.player.setVelocity(0);this.player.setAlpha(.45);this.projectiles.clear(true,true);this.comboText.setText(`${reason} — DEFEATED`).setScale(1.18);this.cameras.main.shake(180,.008);this.cameras.main.fadeOut(420,20,5,22);this.time.delayedCall(650,()=>this.resetPlayer());
   }
 
   resetPlayer(){
-    this.isRespawning=true;this.playerHealth=this.hunter.health;this.player.setPosition(this.checkpointX,this.checkpointY);this.player.setVelocity(0);this.player.clearTint();this.player.setAlpha(.65);this.sync=0;this.lastSafeX=this.checkpointX;this.lastSafeY=this.checkpointY;this.lastPlayerHit=this.time.now;this.projectiles.clear(true,true);
+    this.isRespawning=true;this.playerHealth=this.hunter.health;this.player.setPosition(this.checkpointX,this.checkpointY);this.player.setVelocity(0);this.player.clearTint();this.player.setAlpha(.65);this.sync=0;this.lastSafeX=this.checkpointX;this.lastSafeY=this.checkpointY;this.lastPlayerHit=this.time.now;this.dodgeInvulnerableUntil=-9999;this.projectiles.clear(true,true);
     this.cameras.main.fadeIn(320,10,6,25);this.comboText.setText('CHECKPOINT');this.comboText.setScale(1);this.time.delayedCall(650,()=>{this.player.setAlpha(1);this.isRespawning=false;this.isDefeated=false;this.comboText.setText('');});
   }
 
