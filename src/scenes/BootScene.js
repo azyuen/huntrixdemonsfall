@@ -1,13 +1,16 @@
 import Phaser from 'phaser';
+import { rumiAnimationDataUrl } from '../assets/rumiAnimatedAssetLoader.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor(){ super('Boot'); }
 
   preload(){
     this.load.image('seoulSky', `${import.meta.env.BASE_URL}assets/seoul_skyline_strip.jpg?v=64`);
+    // Keep the old pose images as a fallback while the new atlas drives the live Rumi sprite.
     ['idle','run','jump','attack1','attack2','finisher','aerial','dodge'].forEach(name=>{
       this.load.image(`rumi_${name}`, `${import.meta.env.BASE_URL}assets/rumi_${name}.png?v=64`);
     });
+    this.load.image('rumi_anim_atlas', rumiAnimationDataUrl);
   }
 
   create(){
