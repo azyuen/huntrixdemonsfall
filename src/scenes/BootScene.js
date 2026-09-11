@@ -4,8 +4,8 @@ export default class BootScene extends Phaser.Scene {
   constructor(){ super('Boot'); }
 
   preload(){
-    this.load.image('seoulSky', `${import.meta.env.BASE_URL}assets/seoul_skyline_strip.jpg`);
-    this.load.spritesheet('rumi_sheet', `${import.meta.env.BASE_URL}assets/rumi_sheet.png`, {
+    this.load.image('seoulSky', `${import.meta.env.BASE_URL}assets/seoul_skyline_strip.jpg?v=63`);
+    this.load.spritesheet('rumi_sheet', `${import.meta.env.BASE_URL}assets/rumi_sheet.png?v=63`, {
       frameWidth: 190,
       frameHeight: 90
     });
@@ -15,7 +15,6 @@ export default class BootScene extends Phaser.Scene {
     const status=document.getElementById('status');
     if(status) status.remove();
 
-    // Keep lightweight selection-card art for now; gameplay Rumi uses the real concept-art sheet.
     const makeHunter=(key,bodyColor,detailColor,height=88,width=42)=>{
       const g=this.add.graphics();
       g.fillStyle(0xf1c8d8).fillRoundedRect(width*.2,0,width*.6,height*.28,10);
@@ -29,7 +28,6 @@ export default class BootScene extends Phaser.Scene {
     makeHunter('mira',0x522f84,0xc68aff,94,40);
     makeHunter('zoey',0x155f82,0x6edcff,82,40);
 
-    // Existing placeholder enemy art remains until the enemy visual pass.
     const makeEnemy=(key,{w=72,h=92,body=0x15131c,crack=0xe943c0,hat=true,bulk=0})=>{
       const g=this.add.graphics(),cx=w/2;
       if(bulk){g.fillStyle(body).fillEllipse(cx,h*.58,w*.78,h*.62);g.fillCircle(cx,h*.25,w*.23);}
