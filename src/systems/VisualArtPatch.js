@@ -19,7 +19,7 @@ export function installVisualArt(GameScene){
     if(scene.characterId!=='rumi'||!scene.player?.active)return;
     const ghost=scene.add.image(scene.player.x,scene.player.y,'rumi_sheet',Number(scene.player.frame.name)||0)
       .setDisplaySize(scene.player.displayWidth,scene.player.displayHeight).setFlipX(scene.player.flipX).setAngle(scene.player.angle)
-      .setAlpha(alpha).setTint(0xb8a7ff).setDepth(17);
+      .setBlendMode(Phaser.BlendModes.SCREEN).setAlpha(alpha).setTint(0xb8a7ff).setDepth(17);
     scene.tweens.add({targets:ghost,alpha:0,scaleX:ghost.scaleX*1.06,scaleY:ghost.scaleY*.96,duration:180,onComplete:()=>ghost.destroy()});
   };
   const attackSpark=(scene,finisher=false)=>{
@@ -31,30 +31,23 @@ export function installVisualArt(GameScene){
 
   GameScene.prototype.create=function(...args){
     originalCreate.apply(this,args);
-
-    // Remove all legacy procedural skyline objects first.
     this.children.list.slice().forEach(obj=>{if(obj!==this.player&&obj.depth<0)obj.destroy();});
-
-    // Draw the real backdrop INSIDE Phaser. This avoids iOS Safari transparency/compositing glitches
-    // that previously produced the giant grey slab across the bottom half of the game.
     if(this.textures.exists('seoulSky')){
       this.backdrop=this.add.image(this.scale.width/2,this.scale.height/2,'seoulSky')
         .setDisplaySize(this.scale.width,this.scale.height).setScrollFactor(0).setDepth(-100);
       this.backdrop.setTint(0xd8d9ff);
-      const wash=this.add.rectangle(this.scale.width/2,this.scale.height/2,this.scale.width,this.scale.height,0x100b26,.16)
+      this.backdropWash=this.add.rectangle(this.scale.width/2,this.scale.height/2,this.scale.width,this.scale.height,0x100b26,.16)
         .setScrollFactor(0).setDepth(-99);
-      this.backdropWash=wash;
     }
-
     this.platforms?.getChildren().forEach((p,i)=>{
       p.setFillStyle?.(i%3===0?0x111426:0x17172b,1);p.setStrokeStyle?.(2,0x66577b,.82);
       this.add.rectangle(p.x,p.y-p.height/2+3,Math.max(12,p.width-8),6,0x866c8e,.82).setDepth(3);
     });
-
     this._nextPetal=0;this._wasGrounded=false;this._lastRumiGhost=0;this._rumiAttackLockUntil=0;
     this.player.setDepth(20);
     if(this.characterId==='rumi'&&this.textures.exists('rumi_sheet')){
-      this.player.setTexture('rumi_sheet',rumiFrames.idle).setDisplaySize(240,114).setOrigin(.5,.72);
+      this.player.setTexture('rumi_sheet',rumiFrames.idle).setDisplaySize(240,114).setOrigin(.5,.72)
+        .setBlendMode(Phaser.BlendModes.SCREEN);
       this.player.body.setSize(31,66,true);this.player.body.setOffset(80,18);setRumiFrame(this,'idle');
     }else{
       this.player.setTexture(this.characterId);
