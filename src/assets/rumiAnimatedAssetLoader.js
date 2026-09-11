@@ -25,10 +25,13 @@ import gap322b from './rumiAnimChunks/gap322b.js';
 import gap322c from './rumiAnimChunks/gap322c.js';
 import gap372a from './rumiAnimChunks/gap372a.js';
 import gap372b from './rumiAnimChunks/gap372b.js';
+import repair262_270 from './rumiAnimChunks/repair262_270.js';
+import repair311_322 from './rumiAnimChunks/repair311_322.js';
+import repair346 from './rumiAnimChunks/repair346.js';
+import repair361_372 from './rumiAnimChunks/repair361_372.js';
 
-// Reconstruct the approved 313,480-byte WebP atlas. Three staged source ranges
-// were damaged by transport truncation markers; replace those exact 23-character
-// spans with the verified bytes from the approved atlas before decoding.
+// Reconstruct the approved 313,480-byte WebP atlas. A few staged ranges were
+// damaged during transport, so the verified source ranges are restored below.
 const stagedRumiAnimationBase64 = [
   c00,c01,c02,c03,c04,c05,c06,c07,c08,c09,
   c10a,c10b,c11a,c11b,c12,c13,
@@ -42,9 +45,10 @@ const stagedRumiAnimationBase64 = [
 ].join('');
 
 const atlasRepairs = [
-  [262000, 'motgC2xiWJdOvmp9mZIAoP1'],
-  [311984, 'azaRc8atiM/DJiG9OErpAGb'],
-  [361984, '9wzdpTAfCTHsHjmoUeU959O']
+  [262000, repair262_270],
+  [311984, repair311_322],
+  [346000, repair346],
+  [361984, repair361_372]
 ];
 
 export const rumiAnimationBase64 = atlasRepairs.reduce(
