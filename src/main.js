@@ -11,7 +11,7 @@ installRunSummary(GameScene);
 installVisualArt(GameScene);
 
 new Phaser.Game({
-  type: Phaser.CANVAS,
+  type: Phaser.WEBGL,
   parent: 'app',
   width: GAMEPLAY.width,
   height: GAMEPLAY.height,
