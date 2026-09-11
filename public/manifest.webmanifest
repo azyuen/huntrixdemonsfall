@@ -1,0 +1,10 @@
+{
+  "name": "HUNTR/X: Demons Fall",
+  "short_name": "Demons Fall",
+  "start_url": "/huntrixdemonsfall/",
+  "scope": "/huntrixdemonsfall/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#09051a",
+  "theme_color": "#09051a"
+}
