@@ -39,7 +39,7 @@ export default class GameScene extends Phaser.Scene {
     this.sync=0;this.maxSync=100;this.supportIndex=0;
     this.isRespawning=false;this.isDefeated=false;this.lastSafeX=180;this.lastSafeY=430;
     this.checkpointX=180;this.checkpointY=430;
-    this.airDodgeUsed=false;
+    this.airDodgeUsed=false;this.bossAnnounced=false;
 
     this.enemies=this.physics.add.group();
     this.projectiles=this.physics.add.group();
@@ -56,7 +56,7 @@ export default class GameScene extends Phaser.Scene {
       ['grunt',4510,390],['grunt',4660,390],['ranged',4840,350],
       ['brute',5480,470],['grunt',5600,470],['ranged',5780,430],
       ['grunt',6120,400],['grunt',6250,400],['brute',6410,420],['ranged',6570,390],
-      ['grunt',7050,390],['ranged',7180,350],['grunt',7320,390],['brute',7480,430]
+      ['grunt',7050,390],['ranged',7180,350],['grunt',7320,390],['boss',7580,430]
     ];
     encounter.forEach(([type,x,y])=>this.spawnEnemy(type,x,y));
 
@@ -99,7 +99,7 @@ export default class GameScene extends Phaser.Scene {
     const spawnX=Phaser.Math.Clamp(x,platformLeft,platformRight);
     const spawnY=py-ph/2-stats.height/2-2;
 
-    const e=this.add.rectangle(spawnX,spawnY,stats.width,stats.height,stats.color).setStrokeStyle(4,stats.outline);
+    const e=this.add.rectangle(spawnX,spawnY,stats.width,stats.height,stats.color).setStrokeStyle(type==='boss'?7:4,stats.outline);
     this.physics.add.existing(e);e.body.setSize(stats.width,stats.height);
     e.type=type;e.stats=stats;e.health=stats.health;e.maxHealth=stats.health;e.lastAttack=-9999;e.dead=false;e.hitUntil=0;
     e.platformLeft=platformLeft;e.platformRight=platformRight;e.spawnX=spawnX;e.spawnY=spawnY;
@@ -107,7 +107,7 @@ export default class GameScene extends Phaser.Scene {
     this.enemies.add(e);
     e.hpBg=this.add.rectangle(spawnX,spawnY-stats.height/2-16,Math.max(58,stats.width+12),8,0x160e20).setDepth(30);
     e.hpBar=this.add.rectangle(spawnX-Math.max(56,stats.width+10)/2,spawnY-stats.height/2-16,Math.max(56,stats.width+10),5,stats.outline).setOrigin(0,.5).setDepth(31);
-    e.label=this.add.text(spawnX,spawnY-stats.height/2-34,stats.name,{fontFamily:'system-ui',fontSize:'12px',fontStyle:'bold',color:'#c9bfd9'}).setOrigin(.5).setDepth(31);
+    e.label=this.add.text(spawnX,spawnY-stats.height/2-34,stats.name,{fontFamily:'system-ui',fontSize:type==='boss'?'15px':'12px',fontStyle:'bold',color:type==='boss'?'#ffd5ea':'#c9bfd9'}).setOrigin(.5).setDepth(31);
   }
 
   updateCheckpoint(){
@@ -127,6 +127,7 @@ export default class GameScene extends Phaser.Scene {
       this.lastSafeX=this.player.x;this.lastSafeY=this.player.y;this.airDodgeUsed=false;
       this.updateCheckpoint();
     }
+    if(!this.bossAnnounced&&this.player.x>7100){this.bossAnnounced=true;this.flashSyncLabel('MINI-BOSS — DREAD CAPTAIN');this.cameras.main.shake(220,.004);}
     if(this.player.y>790){this.handleFall();this.updateHUD();return;}
 
     const kb=(this.cursors.left.isDown||this.keys.A.isDown?-1:0)+(this.cursors.right.isDown||this.keys.D.isDown?1:0);
@@ -265,8 +266,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   hitEnemy(e,damage,step,buildSync=false){
-    e.health-=damage;e.hitUntil=this.time.now+170;e.setFillStyle(0x7d5a86);
-    e.body.setVelocityX(this.lastFacing*(step===2?360:210));
+    e.health-=damage;e.hitUntil=this.time.now+(e.type==='boss'?110:170);e.setFillStyle(0x7d5a86);
+    e.body.setVelocityX(this.lastFacing*(e.type==='boss'?(step===2?150:80):(step===2?360:210)));
     if(buildSync)this.gainSync(step===2?GAMEPLAY.syncFinisherGain:GAMEPLAY.syncHitGain);
     this.cameras.main.shake(step===2?70:40,step===2?.004:.002);
     this.time.delayedCall(90,()=>{if(!e.dead)e.setFillStyle(e.stats.color);});
@@ -274,12 +275,14 @@ export default class GameScene extends Phaser.Scene {
   }
 
   killEnemy(e){
+    const wasBoss=e.type==='boss';
     e.dead=true;e.body.enable=false;e.hpBg.destroy();e.hpBar.destroy();e.label.destroy();
-    for(let i=0;i<7;i++){
-      const p=this.add.circle(e.x+Phaser.Math.Between(-18,18),e.y+Phaser.Math.Between(-28,28),Phaser.Math.Between(8,18),0x5a426a,.55).setDepth(20);
-      this.tweens.add({targets:p,x:p.x+Phaser.Math.Between(-45,45),y:p.y-Phaser.Math.Between(25,80),alpha:0,scale:1.8,duration:Phaser.Math.Between(350,650),onComplete:()=>p.destroy()});
+    for(let i=0;i<(wasBoss?14:7);i++){
+      const p=this.add.circle(e.x+Phaser.Math.Between(-24,24),e.y+Phaser.Math.Between(-36,36),Phaser.Math.Between(8,20),wasBoss?0x8b456d:0x5a426a,.6).setDepth(20);
+      this.tweens.add({targets:p,x:p.x+Phaser.Math.Between(-55,55),y:p.y-Phaser.Math.Between(25,95),alpha:0,scale:1.8,duration:Phaser.Math.Between(450,800),onComplete:()=>p.destroy()});
     }
-    this.tweens.add({targets:e,alpha:0,scaleX:1.5,scaleY:.4,duration:240,onComplete:()=>e.destroy()});
+    this.tweens.add({targets:e,alpha:0,scaleX:1.5,scaleY:.4,duration:wasBoss?420:240,onComplete:()=>e.destroy()});
+    if(wasBoss){this.flashSyncLabel('DREAD CAPTAIN DEFEATED!');this.cameras.main.shake(420,.008);}
   }
 
   keepEnemyOnPlatform(e,velocityX){
@@ -307,7 +310,7 @@ export default class GameScene extends Phaser.Scene {
       }
 
       const dx=this.player.x-e.x,dy=Math.abs(this.player.y-e.y),dist=Math.abs(dx);
-      if(dist>GAMEPLAY.enemyAggroRange||dy>130){e.body.setVelocityX(0);return;}
+      if(dist>GAMEPLAY.enemyAggroRange||dy>150){e.body.setVelocityX(0);return;}
 
       let desired=0;
       if(e.type==='ranged'){
@@ -327,10 +330,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   enemyMeleeAttack(e,time){
-    e.setScale(e.type==='brute'?1.18:1.12,1);
-    this.time.delayedCall(120,()=>{if(!e.dead)e.setScale(1);});
+    e.setScale(e.type==='boss'?1.24:e.type==='brute'?1.18:1.12,1);
+    this.time.delayedCall(e.type==='boss'?180:120,()=>{if(!e.dead)e.setScale(1);});
     if(time-this.lastPlayerHit<GAMEPLAY.playerInvulnerability)return;
-    if(Phaser.Math.Distance.Between(e.x,e.y,this.player.x,this.player.y)<e.stats.range+35)this.damagePlayer(e.stats.damage,Math.sign(this.player.x-e.x)*300);
+    if(Phaser.Math.Distance.Between(e.x,e.y,this.player.x,this.player.y)<e.stats.range+35)this.damagePlayer(e.stats.damage,Math.sign(this.player.x-e.x)*(e.type==='boss'?380:300));
   }
 
   fireWraithShot(e){
