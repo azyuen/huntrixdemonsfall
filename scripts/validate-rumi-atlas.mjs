@@ -12,10 +12,13 @@ for(let i=0;i<rumiAnimationBase64.length;i++){
 }
 const padding=[];
 for(let i=0;i<rumiAnimationBase64.length;i++) if(rumiAnimationBase64[i]==='=') padding.push(i);
+const marker='[... truncated ...]';
+const markers=[];
+for(let pos=rumiAnimationBase64.indexOf(marker); pos!==-1; pos=rumiAnimationBase64.indexOf(marker,pos+1)) markers.push(pos);
 
 const bytes = Buffer.from(rumiAnimationBase64, 'base64');
 const sha = crypto.createHash('sha256').update(bytes).digest('hex');
-console.log('Rumi atlas diagnostics',JSON.stringify({base64Length:rumiAnimationBase64.length,byteLength:bytes.length,sha,invalid:invalid.slice(0,20),padding:padding.slice(0,20),paddingCount:padding.length}));
+console.log('Rumi atlas diagnostics',JSON.stringify({base64Length:rumiAnimationBase64.length,byteLength:bytes.length,sha,markers,invalid:invalid.slice(0,40),padding:padding.slice(0,20),paddingCount:padding.length}));
 
 if (rumiAnimationBase64.length !== EXPECTED_BASE64_LENGTH) {
   throw new Error(`Rumi atlas base64 length ${rumiAnimationBase64.length}, expected ${EXPECTED_BASE64_LENGTH}`);
