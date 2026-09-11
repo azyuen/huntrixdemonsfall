@@ -5,11 +5,12 @@ import CharacterSelectScene from './scenes/CharacterSelectScene.js';
 import GameScene from './scenes/GameScene.js';
 import LevelCompleteScene from './scenes/LevelCompleteScene.js';
 import { installRunSummary } from './systems/RunSummaryPatch.js';
+import { installVisualArt } from './systems/VisualArtPatch.js';
 
 installRunSummary(GameScene);
+installVisualArt(GameScene);
 
-// The gameplay world remains fully interactive, but scene camera clears are transparent
-// so the illustrated Seoul skyline can sit behind the Phaser geometry as a real art layer.
+// Keep scene camera clears transparent so the illustrated Seoul art remains visible.
 Phaser.Cameras.Scene2D.Camera.prototype.setBackgroundColor = function(){ return this; };
 
 new Phaser.Game({
