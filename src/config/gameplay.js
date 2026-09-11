@@ -1,5 +1,6 @@
 export const GAMEPLAY = {
-  width: 1280,
+  // Mobile-first logical canvas: 19.5:9, close to modern iPhone/Android landscape screens.
+  width: 1560,
   height: 720,
   worldWidth: 4200,
   gravity: 1100,
