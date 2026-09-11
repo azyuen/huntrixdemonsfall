@@ -13,11 +13,11 @@ export const GAMEPLAY = {
   enemies: {
     grunt: { name:'STALKER', health:70, speed:92, range:78, damage:12, cooldown:1050, width:48, height:76, color:0x271a35, outline:0x8d5b91 },
     brute: { name:'BRUTE', health:135, speed:58, range:96, damage:20, cooldown:1450, width:66, height:92, color:0x321d35, outline:0xa36a82 },
-    ranged: { name:'WRAITH', health:52, speed:72, range:390, damage:10, cooldown:1650, width:44, height:68, color:0x202642, outline:0x7083a8 },
+    ranged: { name:'WRAITH', health:38, speed:68, range:370, damage:8, cooldown:1800, width:44, height:68, color:0x202642, outline:0x7083a8 },
     boss: {
       name:'DREAD CAPTAIN', health:420, speed:72, range:118, damage:25, cooldown:900,
       width:88, height:118, color:0x421933, outline:0xe087b8,
-      chargeDamage:30, slamDamage:24, summonAt:0.52
+      chargeDamage:30, slamDamage:24, summonAt:0.72
     }
   },
 
