@@ -4,10 +4,9 @@ export default class BootScene extends Phaser.Scene {
   constructor(){ super('Boot'); }
 
   preload(){
-    this.load.image('seoulSky', `${import.meta.env.BASE_URL}assets/seoul_skyline_strip.jpg?v=63`);
-    this.load.spritesheet('rumi_sheet', `${import.meta.env.BASE_URL}assets/rumi_sheet.png?v=63`, {
-      frameWidth: 190,
-      frameHeight: 90
+    this.load.image('seoulSky', `${import.meta.env.BASE_URL}assets/seoul_skyline_strip.jpg?v=64`);
+    ['idle','run','jump','attack1','attack2','finisher','aerial','dodge'].forEach(name=>{
+      this.load.image(`rumi_${name}`, `${import.meta.env.BASE_URL}assets/rumi_${name}.png?v=64`);
     });
   }
 
