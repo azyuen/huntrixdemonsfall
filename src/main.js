@@ -8,12 +8,16 @@ import { installRunSummary } from './systems/RunSummaryPatch.js';
 
 installRunSummary(GameScene);
 
+// The gameplay world remains fully interactive, but scene camera clears are transparent
+// so the illustrated Seoul skyline can sit behind the Phaser geometry as a real art layer.
+Phaser.Cameras.Scene2D.Camera.prototype.setBackgroundColor = function(){ return this; };
+
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'app',
   width: GAMEPLAY.width,
   height: GAMEPLAY.height,
-  backgroundColor: '#0b0820',
+  transparent: true,
   input: { activePointers: 4 },
   physics: { default: 'arcade', arcade: { gravity: { y: GAMEPLAY.gravity }, debug: false } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
