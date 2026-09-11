@@ -2,11 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#09051a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Demons Fall" />
+  <link rel="manifest" href="/huntrixdemonsfall/manifest.webmanifest" />
   <title>HUNTR/X: Demons Fall</title>
   <style>
-    html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;background:#09051a;touch-action:none}
-    canvas{display:block;margin:auto}
+    :root{background:#09051a;color-scheme:dark}
+    html,body,#app{
+      margin:0;
+      width:100%;
+      height:100%;
+      min-width:100%;
+      min-height:100%;
+      overflow:hidden;
+      background:#09051a;
+      touch-action:none;
+      overscroll-behavior:none;
+      -webkit-user-select:none;
+      user-select:none;
+    }
+    html,body{position:fixed;inset:0;width:100vw;height:100vh;width:100dvw;height:100dvh}
+    #app{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+    canvas{display:block;margin:0;max-width:100%;max-height:100%;}
     #status{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;color:#fff;background:#09051a;font:600 24px system-ui;text-align:center;padding:24px}
     #status small{display:block;margin-top:12px;font:400 14px system-ui;color:#bdb4d8}
     #rotate{display:none;position:fixed;inset:0;z-index:10;background:#09051a;color:white;align-items:center;justify-content:center;text-align:center;font:600 22px system-ui;padding:32px}
