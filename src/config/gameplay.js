@@ -15,6 +15,14 @@ export const GAMEPLAY = {
   enemyAttackCooldown: 1050,
   playerInvulnerability: 650,
 
+  // Falls should matter, but should not feel like an instant-death platformer.
+  fallDamage: 20,
+  fallSyncLoss: 12,
+
+  // Slower Sync build for the eventual denser enemy waves.
+  syncHitGain: 6,
+  syncFinisherGain: 10,
+
   hunters: {
     rumi: {
       name: 'RUMI', role: 'Balanced', texture: 'rumi', health: 100,
