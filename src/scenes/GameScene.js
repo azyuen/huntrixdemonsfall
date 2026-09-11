@@ -37,7 +37,12 @@ export default class GameScene extends Phaser.Scene {
     this.player.body.setSize(Math.max(34,this.player.width-4),Math.max(72,this.player.height-4));
     this.physics.add.collider(this.player,this.platforms);
 
-    this.playerHealth=this.hunter.health;
+    this.effectiveMaxHealth=this.hunter.health;
+    this.playerHealth=this.effectiveMaxHealth;
+    this.damageMultiplier=1;
+    this.syncMultiplier=1;
+    this.collectedUpgrades=[];
+
     this.lastPlayerHit=-9999;this.lastFacing=1;this.lastDodge=-9999;
     this.dodgeInvulnerableUntil=-9999;
     this.isAttacking=false;this.comboStep=0;this.lastAttack=-9999;
@@ -50,9 +55,11 @@ export default class GameScene extends Phaser.Scene {
 
     this.enemies=this.physics.add.group();
     this.projectiles=this.physics.add.group();
+    this.powerups=this.physics.add.group({allowGravity:false,immovable:true});
     this.physics.add.collider(this.enemies,this.platforms);
     this.physics.add.collider(this.projectiles,this.platforms,p=>p.destroy());
     this.physics.add.overlap(this.player,this.projectiles,(player,p)=>this.hitPlayerFromProjectile(p));
+    this.physics.add.overlap(this.player,this.powerups,(player,p)=>this.collectPowerup(p));
 
     const encounter=[
       ['grunt',720,420],['grunt',850,420],
@@ -68,6 +75,10 @@ export default class GameScene extends Phaser.Scene {
     ];
     encounter.forEach(([type,x,y])=>this.spawnEnemy(type,x,y));
 
+    this.spawnPowerup('power',1840);
+    this.spawnPowerup('vitality',4380);
+    this.spawnPowerup('resonance',6860);
+
     this.cursors=this.input.keyboard.createCursorKeys();
     this.keys=this.input.keyboard.addKeys('A,D,W,SPACE,J,K,L');
     this.touch=new TouchControls(this);
@@ -76,12 +87,13 @@ export default class GameScene extends Phaser.Scene {
 
     this.add.rectangle(175,48,270,28,0x140d24,.9).setScrollFactor(0).setDepth(120).setStrokeStyle(2,0xffffff,.35);
     this.healthBar=this.add.rectangle(42,48,266,22,this.hunter.accent).setOrigin(0,.5).setScrollFactor(0).setDepth(121);
-    this.healthText=this.add.text(175,48,`${this.hunter.name}  ${this.playerHealth} / ${this.hunter.health}`,{fontFamily:'system-ui',fontSize:'16px',fontStyle:'bold',color:'#fff'}).setOrigin(.5).setScrollFactor(0).setDepth(122);
+    this.healthText=this.add.text(175,48,`${this.hunter.name}  ${this.playerHealth} / ${this.effectiveMaxHealth}`,{fontFamily:'system-ui',fontSize:'16px',fontStyle:'bold',color:'#fff'}).setOrigin(.5).setScrollFactor(0).setDepth(122);
     this.comboText=this.add.text(780,46,'',{fontFamily:'system-ui',fontSize:'22px',fontStyle:'bold',color:'#f8d8ff'}).setOrigin(.5).setScrollFactor(0).setDepth(122);
     this.styleText=this.add.text(1320,48,this.hunter.role,{fontFamily:'system-ui',fontSize:'17px',fontStyle:'bold',color:'#d6c9ef'}).setOrigin(.5).setScrollFactor(0).setDepth(122);
     this.add.rectangle(780,92,330,24,0x140d24,.92).setScrollFactor(0).setDepth(120).setStrokeStyle(2,0xd8baff,.45);
     this.syncBar=this.add.rectangle(617,92,326,17,0xd26cff).setOrigin(0,.5).setScrollFactor(0).setDepth(121);
     this.syncText=this.add.text(780,92,'SYNC 0%  •  build with hits',{fontFamily:'system-ui',fontSize:'14px',fontStyle:'bold',color:'#fff'}).setOrigin(.5).setScrollFactor(0).setDepth(122);
+    this.upgradeText=this.add.text(1320,82,'UPGRADES: —',{fontFamily:'system-ui',fontSize:'13px',color:'#bfb4d9',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(122);
 
     this.bossHudBg=this.add.rectangle(780,138,560,27,0x160a18,.92).setScrollFactor(0).setDepth(125).setStrokeStyle(2,0xe087b8,.8).setVisible(false);
     this.bossHudBar=this.add.rectangle(503,138,554,19,0xe087b8,.9).setOrigin(0,.5).setScrollFactor(0).setDepth(126).setVisible(false);
@@ -93,6 +105,44 @@ export default class GameScene extends Phaser.Scene {
     let best=null,bestDistance=Infinity;
     this.platformSpecs.forEach(p=>{const [px,,pw]=p,left=px-pw/2,right=px+pw/2;const d=x<left?left-x:x>right?x-right:0;if(d<bestDistance){bestDistance=d;best=p;}});
     return best;
+  }
+
+  spawnPowerup(type,x){
+    const p=this.findPlatformAt(x)||this.findNearestPlatform(x);if(!p)return;
+    const [px,py,pw,ph]=p,spawnX=Phaser.Math.Clamp(x,px-pw/2+45,px+pw/2-45),spawnY=py-ph/2-52;
+    const colors={power:0xff6b9e,vitality:0x6fe6a8,resonance:0x9c7cff};
+    const labels={power:'POWER',vitality:'VITAL',resonance:'SYNC'};
+    const orb=this.add.circle(spawnX,spawnY,18,colors[type],.85).setDepth(32).setStrokeStyle(4,0xffffff,.8);
+    this.physics.add.existing(orb);orb.body.allowGravity=false;orb.type=type;orb.baseY=spawnY;orb.label=this.add.text(spawnX,spawnY-36,labels[type],{fontFamily:'system-ui',fontSize:'11px',fontStyle:'bold',color:'#ffffff'}).setOrigin(.5).setDepth(33);
+    this.powerups.add(orb);
+    this.tweens.add({targets:orb,y:spawnY-10,duration:700,yoyo:true,repeat:-1,ease:'Sine.InOut'});
+    this.tweens.add({targets:orb,scale:1.18,duration:500,yoyo:true,repeat:-1});
+  }
+
+  collectPowerup(p){
+    if(!p.active)return;
+    const type=p.type;
+    if(p.label)p.label.destroy();
+    p.destroy();
+    if(type==='power'){
+      this.damageMultiplier*=1.18;
+      this.collectedUpgrades.push('POWER +18%');
+      this.flashSyncLabel('POWER UP — DAMAGE +18%');
+    }else if(type==='vitality'){
+      this.effectiveMaxHealth+=20;
+      this.playerHealth=Math.min(this.effectiveMaxHealth,this.playerHealth+35);
+      this.collectedUpgrades.push('VITAL +20 HP');
+      this.flashSyncLabel('VITALITY — MAX HP +20');
+    }else if(type==='resonance'){
+      this.syncMultiplier*=1.3;
+      this.sync=Math.min(this.maxSync,this.sync+20);
+      this.collectedUpgrades.push('SYNC +30%');
+      this.flashSyncLabel('RESONANCE — SYNC GAIN +30%');
+    }
+    const burst=this.add.circle(this.player.x,this.player.y,30,0xffffff,.08).setDepth(35).setStrokeStyle(5,0xffffff,.8);
+    this.tweens.add({targets:burst,scale:2.6,alpha:0,duration:420,onComplete:()=>burst.destroy()});
+    this.cameras.main.shake(90,.003);
+    this.upgradeText.setText(`UPGRADES: ${this.collectedUpgrades.join(' • ')}`);
   }
 
   spawnEnemy(type,x,y){
@@ -213,7 +263,7 @@ export default class GameScene extends Phaser.Scene {
     this.time.delayedCall(750,()=>{if(blade.active){overlap.destroy();blade.destroy();}});
   }
 
-  gainSync(amount){this.sync=Phaser.Math.Clamp(this.sync+amount,0,this.maxSync);}
+  gainSync(amount){this.sync=Phaser.Math.Clamp(this.sync+amount*this.syncMultiplier,0,this.maxSync);}
   useSync(){if(this.sync<25){this.flashSyncLabel('BUILD SYNC WITH HITS');return;}if(this.sync>=100){this.fullSync();this.sync=0;return;}if(this.sync>=60){this.duoCombo();this.sync-=60;return;}this.supportAttack();this.sync-=25;}
   otherHunters(){return ['rumi','mira','zoey'].filter(id=>id!==this.characterId);}
 
@@ -244,7 +294,8 @@ export default class GameScene extends Phaser.Scene {
   flashSyncLabel(text){this.comboText.setText(text).setScale(1.08);this.tweens.add({targets:this.comboText,scale:1,duration:220});this.time.delayedCall(1200,()=>{if(this.comboText.text===text)this.comboText.setText('');});}
 
   hitEnemy(e,damage,step,buildSync=false){
-    e.health-=damage;e.hitUntil=this.time.now+(e.type==='boss'?100:170);e.setFillStyle(0x7d5a86);
+    const finalDamage=damage*this.damageMultiplier;
+    e.health-=finalDamage;e.hitUntil=this.time.now+(e.type==='boss'?100:170);e.setFillStyle(0x7d5a86);
     e.body.setVelocityX(this.lastFacing*(e.type==='boss'?(step===2?120:55):(step===2?360:210)));
     if(buildSync)this.gainSync(step===2?GAMEPLAY.syncFinisherGain:GAMEPLAY.syncHitGain);
     this.cameras.main.shake(step===2?70:40,step===2?.004:.002);this.time.delayedCall(90,()=>{if(!e.dead)e.setFillStyle(e.stats.color);});if(e.health<=0)this.killEnemy(e);
@@ -322,7 +373,7 @@ export default class GameScene extends Phaser.Scene {
   bossSummon(e){
     e.actionUntil=this.time.now+1700;e.body.setVelocityX(0);this.flashSyncLabel('DREAD CAPTAIN SUMMONS WRAITHS!');
     const aura=this.add.circle(e.x,e.y,80,0x92547e,.15).setDepth(20).setStrokeStyle(8,0xd18ab4,.8);this.tweens.add({targets:aura,scale:2.2,alpha:0,duration:1200,onComplete:()=>aura.destroy()});
-    this.time.delayedCall(650,()=>{if(!e.dead){this.spawnEnemy('ranged',7950,430);this.spawnEnemy('ranged',8820,430);}});
+    this.time.delayedCall(650,()=>{if(!e.dead){const a=this.spawnEnemy('ranged',7950,430),b=this.spawnEnemy('ranged',8820,430);[a,b].forEach(w=>{w.health=Math.round(w.health*.55);w.maxHealth=w.health;w.stats={...w.stats,damage:Math.max(5,Math.round(w.stats.damage*.65))};});}});
   }
 
   enemyMeleeAttack(e,time){
@@ -367,12 +418,12 @@ export default class GameScene extends Phaser.Scene {
   }
 
   resetPlayer(){
-    this.isRespawning=true;this.playerHealth=this.hunter.health;this.player.setPosition(this.checkpointX,this.checkpointY);this.player.setVelocity(0);this.player.clearTint();this.player.setAlpha(.65);this.sync=0;this.lastSafeX=this.checkpointX;this.lastSafeY=this.checkpointY;this.lastPlayerHit=this.time.now;this.dodgeInvulnerableUntil=-9999;this.projectiles.clear(true,true);
+    this.isRespawning=true;this.playerHealth=this.effectiveMaxHealth;this.player.setPosition(this.checkpointX,this.checkpointY);this.player.setVelocity(0);this.player.clearTint();this.player.setAlpha(.65);this.sync=0;this.lastSafeX=this.checkpointX;this.lastSafeY=this.checkpointY;this.lastPlayerHit=this.time.now;this.dodgeInvulnerableUntil=-9999;this.projectiles.clear(true,true);
     this.cameras.main.fadeIn(320,10,6,25);this.comboText.setText('CHECKPOINT');this.comboText.setScale(1);this.time.delayedCall(650,()=>{this.player.setAlpha(1);this.isRespawning=false;this.isDefeated=false;this.comboText.setText('');});
   }
 
   updateHUD(){
-    this.healthBar.width=266*(this.playerHealth/this.hunter.health);this.healthText.setText(`${this.hunter.name}  ${this.playerHealth} / ${this.hunter.health}`);this.syncBar.width=326*(this.sync/this.maxSync);
+    this.healthBar.width=266*(this.playerHealth/this.effectiveMaxHealth);this.healthText.setText(`${this.hunter.name}  ${Math.ceil(this.playerHealth)} / ${this.effectiveMaxHealth}`);this.syncBar.width=326*(this.sync/this.maxSync);
     const tier=this.sync>=100?'FULL SYNC READY':this.sync>=60?'DUO READY':this.sync>=25?'SUPPORT READY':'build with hits';this.syncText.setText(`SYNC ${Math.floor(this.sync)}%  •  ${tier}`);
     if(this.bossActive&&this.boss&&!this.boss.dead)this.bossHudBar.width=554*Math.max(0,this.boss.health/this.boss.maxHealth);
   }
