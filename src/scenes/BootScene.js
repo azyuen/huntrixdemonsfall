@@ -2,6 +2,11 @@ import Phaser from 'phaser';
 
 export default class BootScene extends Phaser.Scene {
   constructor(){ super('Boot'); }
+
+  preload(){
+    this.load.image('seoulSky', `${import.meta.env.BASE_URL}assets/seoul_skyline_strip.jpg`);
+  }
+
   create(){
     const status=document.getElementById('status');
     if(status) status.remove();
