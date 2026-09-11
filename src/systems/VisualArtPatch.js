@@ -32,7 +32,7 @@ export function installVisualArt(GameScene){
     if(dodging){
       setRumiPose(scene,'dodge');
     }else if(scene.isAttacking||time<scene._rumiAttackLockUntil){
-      // Keep attack pose chosen in performAttack.
+      // Preserve the selected attack pose through the active attack window.
     }else if(!grounded){
       setRumiPose(scene,Math.abs(body.velocity.x)>240?'aerial':'jump');
     }else if(Math.abs(body.velocity.x)>45){
@@ -41,9 +41,8 @@ export function installVisualArt(GameScene){
       setRumiPose(scene,'idle');
     }
 
-    // Anchor the artwork to the physics body's feet, not the sprite texture origin.
-    scene.rumiVisual.setPosition(body.center.x,body.bottom+4);
-    scene.rumiVisual.setFlipX(scene.lastFacing<0);
+    // The physics body is the source of truth. Artwork is anchored to its feet.
+    scene.rumiVisual.setPosition(body.center.x,body.bottom+4).setFlipX(scene.lastFacing<0);
 
     if(dodging){
       scene.rumiVisual.setAlpha(.72).setAngle((scene.lastFacing||1)*2.5);
@@ -56,14 +55,14 @@ export function installVisualArt(GameScene){
       }
     }else{
       scene.rumiVisual.setAlpha(1);
-      if(scene.rumiPose==='run') scene.rumiVisual.setAngle(Math.sin(time/125)*.6);
-      else if(scene.rumiPose==='jump'||scene.rumiPose==='aerial') scene.rumiVisual.setAngle(Phaser.Math.Clamp(body.velocity.y/300,-2.2,2.8));
+      if(scene.rumiPose==='run')scene.rumiVisual.setAngle(Math.sin(time/125)*.6);
+      else if(scene.rumiPose==='jump'||scene.rumiPose==='aerial')scene.rumiVisual.setAngle(Phaser.Math.Clamp(body.velocity.y/300,-2.2,2.8));
       else scene.rumiVisual.setAngle(0);
     }
 
     if(scene.rumiAura){
       scene.rumiAura.setPosition(body.center.x,body.bottom-40);
-      scene.rumiAura.setAlpha(scene.isAttacking?.12:.045);
+      scene.rumiAura.setAlpha(scene.isAttacking?.10:.035);
     }
   };
 
@@ -77,15 +76,27 @@ export function installVisualArt(GameScene){
   GameScene.prototype.create=function(...args){
     originalCreate.apply(this,args);
 
-    // Remove the old generated city layers completely.
+    // Remove all old procedural skyline pieces.
     this.children.list.slice().forEach(obj=>{if(obj!==this.player&&obj.depth<0)obj.destroy();});
 
-    // The source skyline image contains a flat lower block, so only use it as an upper skyline strip.
-    this.backdropBase=this.add.rectangle(this.scale.width/2,this.scale.height/2,this.scale.width,this.scale.height,0x09051a,1).setScrollFactor(0).setDepth(-120);
+    // Full dark base so there is never an unpainted/grey WebGL clear area.
+    this.backdropBase=this.add.rectangle(this.scale.width/2,this.scale.height/2,this.scale.width,this.scale.height,0x09051a,1)
+      .setScrollFactor(0).setDepth(-120);
+
     if(this.textures.exists('seoulSky')){
-      this.backdrop=this.add.image(this.scale.width/2,175,'seoulSky').setDisplaySize(this.scale.width,350).setScrollFactor(0).setDepth(-110);
-      this.backdrop.setTint(0xe5e4ff);
-      this.backdropWash=this.add.rectangle(this.scale.width/2,175,this.scale.width,350,0x100b26,.10).setScrollFactor(0).setDepth(-105);
+      // The source image has a large flat grey lower section baked into it.
+      // Crop to the illustrated top 36% only, then scale that crop behind the level.
+      this.backdrop=this.add.image(this.scale.width/2,275,'seoulSky').setScrollFactor(0).setDepth(-110);
+      const sourceW=this.backdrop.width;
+      const sourceH=this.backdrop.height;
+      const cropH=Math.max(1,Math.floor(sourceH*.36));
+      this.backdrop.setCrop(0,0,sourceW,cropH);
+      this.backdrop.setDisplaySize(this.scale.width,550);
+      this.backdrop.setTint(0xe7e8ff);
+
+      // Subtle atmospheric fade into the dark rooftop foreground.
+      this.add.rectangle(this.scale.width/2,450,this.scale.width,220,0x100b26,.18).setScrollFactor(0).setDepth(-106);
+      this.add.rectangle(this.scale.width/2,540,this.scale.width,150,0x09051a,.34).setScrollFactor(0).setDepth(-105);
     }
 
     this.platforms?.getChildren().forEach((p,i)=>{
@@ -99,13 +110,12 @@ export function installVisualArt(GameScene){
     this._rumiAttackLockUntil=0;
 
     if(this.characterId==='rumi'&&this.textures.exists('rumi_idle')){
-      // Keep the Arcade Physics sprite as an invisible collision/movement controller.
-      // Rumi's artwork is a separate image that follows the body's feet.
+      // Invisible controller + separate visible art keeps physics and pose swaps independent.
       this.player.setTexture('rumi').setVisible(false).setAlpha(1);
       this.player.body.setSize(34,72,true);
       this.rumiVisual=this.add.image(this.player.x,this.player.y,'rumi_idle').setDepth(20).setOrigin(.5,1);
       setRumiPose(this,'idle');
-      this.rumiAura=this.add.ellipse(this.player.x,this.player.y,80,96,0x9e78ff,.045).setDepth(16).setStrokeStyle(2,0xe8dcff,.10);
+      this.rumiAura=this.add.ellipse(this.player.x,this.player.y,80,96,0x9e78ff,.035).setDepth(16).setStrokeStyle(2,0xe8dcff,.08);
       syncRumiVisual(this,this.time.now);
     }
   };
@@ -152,9 +162,9 @@ export function installVisualArt(GameScene){
     originalUpdate.call(this,time,delta);
 
     if(time>this._nextPetal){
-      this._nextPetal=time+Phaser.Math.Between(750,1300);
+      this._nextPetal=time+Phaser.Math.Between(850,1450);
       const cam=this.cameras.main,px=cam.scrollX+cam.width+30,py=Phaser.Math.Between(120,430);
-      const petal=this.add.ellipse(px,py,9,4,0xffa7cf,.46).setDepth(10);
+      const petal=this.add.ellipse(px,py,9,4,0xffa7cf,.40).setDepth(10);
       this.tweens.add({targets:petal,x:px-Phaser.Math.Between(240,390),y:py+Phaser.Math.Between(30,90),angle:180,alpha:0,duration:Phaser.Math.Between(1800,2500),onComplete:()=>petal.destroy()});
     }
 
