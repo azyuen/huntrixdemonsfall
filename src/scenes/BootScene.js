@@ -1,18 +1,22 @@
 import Phaser from 'phaser';
 import { rumiAnimationDataUrl } from '../assets/rumiAnimatedAssetLoader.js';
+import { rumiIdleDataUrl, RUMI_IDLE_FRAME_WIDTH, RUMI_IDLE_FRAME_HEIGHT } from '../assets/rumiIdleAssetLoader.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor(){ super('Boot'); }
 
   preload(){
     this.load.image('seoulSky', `${import.meta.env.BASE_URL}assets/seoul_skyline_strip.jpg?v=64`);
-    // Keep the old pose images as a fallback while the new atlas drives the live Rumi sprite.
+    // Keep the old pose images as a fallback while the prototype atlas drives moves not yet replaced.
     ['idle','run','jump','attack1','attack2','finisher','aerial','dodge'].forEach(name=>{
       this.load.image(`rumi_${name}`, `${import.meta.env.BASE_URL}assets/rumi_${name}.png?v=64`);
     });
-    // Final high-resolution idle frames. Other moves continue to use the prototype atlas until replaced.
-    [0,1,2,3].forEach(i=>this.load.image(`rumi_idle_final_${i}`, `${import.meta.env.BASE_URL}assets/rumi_idle_0${i}.webp?v=1`));
     this.load.image('rumi_anim_atlas', rumiAnimationDataUrl);
+    // First production animation: four canonical idle frames on one transparent spritesheet.
+    this.load.spritesheet('rumi_idle_prod', rumiIdleDataUrl, {
+      frameWidth: RUMI_IDLE_FRAME_WIDTH,
+      frameHeight: RUMI_IDLE_FRAME_HEIGHT
+    });
   }
 
   create(){
