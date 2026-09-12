@@ -22,7 +22,7 @@ export const RUMI_SPEC = Object.freeze({
   moveSpeed: 300
 });
 
-export default class Rumi extends Phaser.GameObjects.Sprite {
+export default class Rumi extends Phaser.GameObjects.Image {
   static preload(scene) {
     scene.load.spritesheet('rumi-idle-run-sheet', rumiIdleRunSheetDataUrl, {
       frameWidth: FRAME_WIDTH,
