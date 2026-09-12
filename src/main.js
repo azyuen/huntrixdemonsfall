@@ -3,6 +3,7 @@ import { GAMEPLAY } from './config/gameplay.js';
 import BootScene from './scenes/BootScene.js';
 import CharacterSelectScene from './scenes/CharacterSelectScene.js';
 import GameScene from './scenes/GameScene.js';
+import VerticalSliceScene from './scenes/VerticalSliceScene.js';
 import LevelCompleteScene from './scenes/LevelCompleteScene.js';
 import { installRunSummary } from './systems/RunSummaryPatch.js';
 import { installVisualArt } from './systems/VisualArtPatch.js';
@@ -23,5 +24,5 @@ new Phaser.Game({
   input: { activePointers: 4 },
   physics: { default: 'arcade', arcade: { gravity: { y: GAMEPLAY.gravity }, debug: false } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, CharacterSelectScene, GameScene, LevelCompleteScene]
+  scene: [BootScene, CharacterSelectScene, VerticalSliceScene, LevelCompleteScene]
 });

@@ -1,5 +1,5 @@
 export const GAMEPLAY = {
-  width: 1560, height: 720, worldWidth: 9200, gravity: 1100,
+  width: 1560, height: 720, worldWidth: 2720, gravity: 1100,
   jumpSpeed: 570, dodgeDuration: 180, dodgeCooldown: 650,
   enemyAggroRange: 520, playerInvulnerability: 650,
   fallDamage: 20, fallSyncLoss: 12,
