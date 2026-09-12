@@ -1,3 +1,5 @@
+import Phaser from 'phaser';
+
 const FINAL_IDLE_SCALE=0.334;
 const FINAL_IDLE_ORIGIN_Y=0.89;
 const FINAL_IDLE_FPS=6;
@@ -7,7 +9,7 @@ export function installFinalRumiIdle(GameScene){
   const previousCreate=GameScene.prototype.create;
   const previousUpdate=GameScene.prototype.update;
 
-  const finalIdleReady=scene=>FINAL_IDLE_SEQUENCE.every(i=>scene.textures.exists(`rumi_idle_final_${i}`));
+  const finalIdleReady=scene=>[0,1,2,3].every(i=>scene.textures.exists(`rumi_idle_final_${i}`));
 
   const showFinalIdle=(scene,time)=>{
     const frameMs=1000/FINAL_IDLE_FPS;
@@ -32,9 +34,7 @@ export function installFinalRumiIdle(GameScene){
     const result=previousCreate.apply(this,args);
     this.rumiFinalIdleReady=this.characterId==='rumi'&&finalIdleReady(this);
     if(this.rumiFinalIdleReady){
-      ['rumi_idle_final_0','rumi_idle_final_1','rumi_idle_final_2','rumi_idle_final_3'].forEach(key=>{
-        this.textures.get(key)?.setFilter?.(Phaser.Textures.FilterMode.LINEAR);
-      });
+      [0,1,2,3].forEach(i=>this.textures.get(`rumi_idle_final_${i}`)?.setFilter?.(Phaser.Textures.FilterMode.LINEAR));
       const body=this.player?.body;
       if(body&&(body.blocked.down||body.touching.down)&&Math.abs(body.velocity.x)<45)showFinalIdle(this,this.time.now);
     }
