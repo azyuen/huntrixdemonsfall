@@ -1,0 +1,33 @@
+name: Validate Rumi run assets
+
+on:
+  push:
+    branches: [fix/rumi-real-run-binaries]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and verify assets
+        run: |
+          npm run build
+          test -f dist/assets/rumi_run_01.webp
+          test -f dist/assets/rumi_run_02.webp
+          test -f dist/assets/rumi_run_03.webp
+          test -f dist/assets/rumi_run_04.webp
+          test -f dist/assets/rumi_run_05.webp
+          sha256sum dist/assets/rumi_run_*.webp
