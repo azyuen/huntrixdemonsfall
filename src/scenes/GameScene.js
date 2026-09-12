@@ -40,10 +40,10 @@ export default class GameScene extends Phaser.Scene {
     this.createMoveButton(120, 625, '◀', () => { this.leftHeld = true; }, () => { this.leftHeld = false; });
     this.createMoveButton(260, 625, '▶', () => { this.rightHeld = true; }, () => { this.rightHeld = false; });
 
-    this.add.text(28, 26, 'HUNTR/X — V2 MOVEMENT TEST', {
+    this.add.text(28, 26, 'HUNTR/X — V2 RUMI TEST', {
       fontFamily: 'system-ui, sans-serif', fontSize: '22px', fontStyle: '700', color: '#ffffff'
     }).setDepth(20);
-    this.add.text(28, 58, 'LARGER RUMI • SLOWER IDLE • BASIC LEFT/RIGHT', {
+    this.add.text(28, 58, 'PROJECT-SOURCE IDLE + RUN • LARGER RUMI • LEFT/RIGHT', {
       fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#c8bde4'
     }).setDepth(20);
 
@@ -70,6 +70,8 @@ export default class GameScene extends Phaser.Scene {
     const left = this.leftHeld || this.keys.left.isDown || this.keys.a.isDown;
     const right = this.rightHeld || this.keys.right.isDown || this.keys.d.isDown;
     const direction = left === right ? 0 : (left ? -1 : 1);
+
+    this.rumi.setMoving(direction !== 0);
 
     if (direction !== 0) {
       this.rumi.x = Phaser.Math.Clamp(
