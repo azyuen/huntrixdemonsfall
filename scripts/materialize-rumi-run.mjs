@@ -34,7 +34,19 @@ const frames = [
   },
   {
     output: 'rumi_run_05.webp',
-    chunks: ['run4_0.js', 'run4_1.js'],
+    chunks: [
+      'run4_head_0.js',
+      'run4_head_1.js',
+      'run4_head_2.js',
+      'run4_head_3.js',
+      'run4_head_4.js',
+      'run4_head_5.js',
+      'run4_clean_1.js',
+      'run4_clean_2.js',
+      'run4_clean_3.js',
+      'run4_clean_4.js',
+      'run4_clean_5.js'
+    ],
     bytes: 25280,
     sha256: '7c3d0399683e8b8a460079fc50fa99fe5d162bcb02028d5e8ffd98f7bde5b204'
   }
