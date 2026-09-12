@@ -9,13 +9,13 @@ import { installRunSummary } from './systems/RunSummaryPatch.js';
 import { installVisualArt } from './systems/VisualArtPatch.js';
 import { installPolishPass } from './systems/PolishPass.js';
 import { installCameraDirector } from './systems/CameraDirectorPatch.js';
-import { installFinalRumiIdle } from './systems/FinalRumiIdlePatch.js';
+import { installRumiProductionIdle } from './systems/RumiProductionIdlePatch.js';
 
 installRunSummary(GameScene);
 installVisualArt(GameScene);
 installPolishPass(GameScene);
 installCameraDirector(GameScene);
-installFinalRumiIdle(GameScene);
+installRumiProductionIdle(GameScene);
 
 new Phaser.Game({
   type: Phaser.WEBGL,
