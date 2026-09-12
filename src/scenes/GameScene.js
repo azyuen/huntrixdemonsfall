@@ -43,7 +43,7 @@ export default class GameScene extends Phaser.Scene {
     this.add.text(28, 26, 'HUNTR/X — V2 RUMI TEST', {
       fontFamily: 'system-ui, sans-serif', fontSize: '22px', fontStyle: '700', color: '#ffffff'
     }).setDepth(20);
-    this.add.text(28, 58, 'PROJECT-SOURCE IDLE + RUN • LARGER RUMI • LEFT/RIGHT', {
+    this.add.text(28, 58, '33% VISIBLE HEIGHT • PROJECT-SOURCE IDLE + RUN • LEFT/RIGHT', {
       fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#c8bde4'
     }).setDepth(20);
 
@@ -66,12 +66,12 @@ export default class GameScene extends Phaser.Scene {
     circle.on('pointerupoutside', onUp);
   }
 
-  update(_time, delta) {
+  update(time, delta) {
     const left = this.leftHeld || this.keys.left.isDown || this.keys.a.isDown;
     const right = this.rightHeld || this.keys.right.isDown || this.keys.d.isDown;
     const direction = left === right ? 0 : (left ? -1 : 1);
 
-    this.rumi.setMoving(direction !== 0);
+    this.rumi.updateMotion(time, direction !== 0);
 
     if (direction !== 0) {
       this.rumi.x = Phaser.Math.Clamp(
