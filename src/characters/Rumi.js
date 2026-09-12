@@ -4,7 +4,7 @@ import { rumiIdleRunSheetDataUrl } from '../assets/rumiIdleRunSheet.js';
 const GAME_HEIGHT = 720;
 const FRAME_WIDTH = 240;
 const FRAME_HEIGHT = 320;
-const APPROX_VISIBLE_IDLE_HEIGHT = 305;
+const VISIBLE_BODY_HEIGHT = 293;
 
 const IDLE_FRAMES = [5, 6, 7, 8, 7, 6];
 const RUN_FRAMES = [0, 1, 2, 3, 4];
@@ -13,11 +13,12 @@ export const RUMI_SPEC = Object.freeze({
   visibleBodyRatio: 0.33,
   futureBossScreenRatio: 0.27,
   sourceCanvas: [FRAME_WIDTH, FRAME_HEIGHT],
-  normalScale: (GAME_HEIGHT * 0.33) / APPROX_VISIBLE_IDLE_HEIGHT,
+  sourceBodyHeight: VISIBLE_BODY_HEIGHT,
+  normalScale: (GAME_HEIGHT * 0.33) / VISIBLE_BODY_HEIGHT,
   originX: 0.5,
   originY: 0.985,
-  idleFrameMs: 500,
-  runFrameMs: 110,
+  idleFrameMs: 850,
+  runFrameMs: 100,
   moveSpeed: 300
 });
 
@@ -26,7 +27,7 @@ export default class Rumi extends Phaser.GameObjects.Sprite {
     scene.load.spritesheet('rumi-idle-run-sheet', rumiIdleRunSheetDataUrl, {
       frameWidth: FRAME_WIDTH,
       frameHeight: FRAME_HEIGHT,
-      endFrame: 9
+      endFrame: 8
     });
   }
 
@@ -53,6 +54,7 @@ export default class Rumi extends Phaser.GameObjects.Sprite {
     if (nextState !== this.motionState) {
       this.motionState = nextState;
       this.motionStartedAt = time;
+      this.lastFrame = -1;
     }
 
     const frames = this.motionState === 'run' ? RUN_FRAMES : IDLE_FRAMES;
