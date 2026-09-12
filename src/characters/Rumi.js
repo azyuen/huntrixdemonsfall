@@ -24,15 +24,26 @@ export const RUMI_SPEC = Object.freeze({
 
 export default class Rumi extends Phaser.GameObjects.Image {
   static preload(scene) {
-    scene.load.spritesheet('rumi-idle-run-sheet', rumiIdleRunSheetDataUrl, {
-      frameWidth: FRAME_WIDTH,
-      frameHeight: FRAME_HEIGHT,
-      endFrame: 8
-    });
+    // Load the approved 1200x640 sheet as ONE image. Phaser's spritesheet
+    // parser was producing bad frame data for the AVIF data URL on iOS.
+    scene.load.image('rumi-idle-run-sheet', rumiIdleRunSheetDataUrl);
+  }
+
+  static ensureFrames(scene) {
+    const texture = scene.textures.get('rumi-idle-run-sheet');
+    if (!texture || texture.has('0')) return;
+
+    // Sheet layout: run 01-05 on row 1, idle 01-04 on row 2.
+    for (let frame = 0; frame < 9; frame += 1) {
+      const column = frame % 5;
+      const row = Math.floor(frame / 5);
+      texture.add(String(frame), 0, column * FRAME_WIDTH, row * FRAME_HEIGHT, FRAME_WIDTH, FRAME_HEIGHT);
+    }
   }
 
   constructor(scene, x, groundY) {
-    super(scene, x, groundY, 'rumi-idle-run-sheet', IDLE_FRAMES[0]);
+    Rumi.ensureFrames(scene);
+    super(scene, x, groundY, 'rumi-idle-run-sheet', String(IDLE_FRAMES[0]));
     scene.add.existing(this);
 
     this.motionState = 'idle';
@@ -63,7 +74,7 @@ export default class Rumi extends Phaser.GameObjects.Image {
     const frame = frames[Math.floor(elapsed / frameMs) % frames.length];
 
     if (frame !== this.lastFrame) {
-      this.setFrame(frame);
+      this.setFrame(String(frame));
       this.lastFrame = frame;
     }
   }
