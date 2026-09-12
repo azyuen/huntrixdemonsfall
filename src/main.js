@@ -8,10 +8,12 @@ import LevelCompleteScene from './scenes/LevelCompleteScene.js';
 import { installRunSummary } from './systems/RunSummaryPatch.js';
 import { installVisualArt } from './systems/VisualArtPatch.js';
 import { installPolishPass } from './systems/PolishPass.js';
+import { installCameraDirector } from './systems/CameraDirectorPatch.js';
 
 installRunSummary(GameScene);
 installVisualArt(GameScene);
 installPolishPass(GameScene);
+installCameraDirector(GameScene);
 
 new Phaser.Game({
   type: Phaser.WEBGL,
