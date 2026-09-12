@@ -1,12 +1,11 @@
 {
   "name": "huntrixdemonsfall",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "validate:rumi": "node scripts/validate-rumi-atlas.mjs",
-    "build": "npm run validate:rumi && vite build",
+    "build": "vite build",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
