@@ -1,23 +1,25 @@
 import Phaser from 'phaser';
-import { rumiStableIdleDataUrl } from '../assets/rumiStableIdle.js';
+import { rumiStableIdleDataUrl } from '../assets/rumiStableIdleV2.js';
 
 const GAME_HEIGHT = 720;
 const SOURCE_HEIGHT = 384;
+const VISIBLE_BODY_HEIGHT = 373;
 
 export const RUMI_SPEC = Object.freeze({
   visibleBodyRatio: 0.33,
   futureBossScreenRatio: 0.27,
   sourceCanvasHeight: SOURCE_HEIGHT,
-  normalScale: (GAME_HEIGHT * 0.33) / SOURCE_HEIGHT,
+  sourceBodyHeight: VISIBLE_BODY_HEIGHT,
+  normalScale: (GAME_HEIGHT * 0.33) / VISIBLE_BODY_HEIGHT,
   originX: 0.5,
-  originY: 0.985,
+  originY: 1,
   moveSpeed: 300
 });
 
 export default class Rumi extends Phaser.GameObjects.Image {
   static preload(scene) {
-    // Stability pass: use one real WebP frame directly from the project-source
-    // artwork. No AVIF, no sprite-sheet parser and no custom frame slicing.
+    // Stability build: one canonical WebP frame reconstructed from verified
+    // chunks. No AVIF, sprite-sheet parser, or manual frame slicing.
     scene.load.image('rumi-stable-idle', rumiStableIdleDataUrl);
   }
 
