@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 
 const GAME_HEIGHT = 720;
-const SOURCE_BODY_HEIGHT = 260;
+const SOURCE_BODY_HEIGHT = 390;
 
 export const RUMI_SPEC = Object.freeze({
   normalScreenRatio: 0.33,
   bossScreenRatio: 0.27,
+  sourceCanvas: [216, 399],
   sourceBodyHeight: SOURCE_BODY_HEIGHT,
   normalScale: (GAME_HEIGHT * 0.33) / SOURCE_BODY_HEIGHT,
   bossZoomFromNormal: 0.27 / 0.33,
