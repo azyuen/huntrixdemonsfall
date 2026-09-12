@@ -43,7 +43,7 @@ export default class GameScene extends Phaser.Scene {
     this.add.text(28, 26, 'HUNTR/X — V2 RUMI TEST', {
       fontFamily: 'system-ui, sans-serif', fontSize: '22px', fontStyle: '700', color: '#ffffff'
     }).setDepth(20);
-    this.add.text(28, 58, '33% VISIBLE HEIGHT • PROJECT-SOURCE IDLE + RUN • LEFT/RIGHT', {
+    this.add.text(28, 58, '33% VISIBLE HEIGHT • STABLE WEBP TEST • LEFT/RIGHT', {
       fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#c8bde4'
     }).setDepth(20);
 
