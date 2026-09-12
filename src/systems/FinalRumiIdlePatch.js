@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 const FINAL_IDLE_SCALE=0.334;
-const FINAL_IDLE_ORIGIN_Y=0.985;
+const FINAL_IDLE_ORIGIN_Y=0.89;
 const FINAL_IDLE_FPS=6;
 const FINAL_IDLE_SEQUENCE=[0,1,2,3,2,1];
 
@@ -23,14 +23,10 @@ export function installFinalRumiIdle(GameScene){
       visual.anims?.stop();
       visual.setTexture(key);
     }
-    visual
-      .setOrigin(.5,FINAL_IDLE_ORIGIN_Y)
-      .setScale(FINAL_IDLE_SCALE)
-      .setVisible(true)
-      .setFlipX(scene.lastFacing<0)
-      .setPosition(scene.player.body.center.x,scene.player.body.bottom+5)
-      .setAngle(0)
-      .setAlpha(1);
+    visual.setOrigin(.5,FINAL_IDLE_ORIGIN_Y).setScale(FINAL_IDLE_SCALE).setVisible(true);
+    visual.setFlipX(scene.lastFacing<0);
+    visual.setPosition(scene.player.body.center.x,scene.player.body.bottom+5);
+    visual.setAngle(0).setAlpha(1);
     scene.rumiPose='idle-final';
   };
 
@@ -57,8 +53,8 @@ export function installFinalRumiIdle(GameScene){
 }
 
 export const FINAL_RUMI_IDLE_SPEC={
-  sourceCanvas:[216,399],
-  bodyHeightPx:390,
+  sourceCanvas:[384,448],
+  bodyHeightPx:384,
   runtimeScale:FINAL_IDLE_SCALE,
   origin:[0.5,FINAL_IDLE_ORIGIN_Y],
   frameRate:FINAL_IDLE_FPS,
