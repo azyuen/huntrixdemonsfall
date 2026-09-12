@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
-const FINAL_IDLE_SCALE=0.334;
-const FINAL_IDLE_ORIGIN_Y=0.89;
+const FINAL_IDLE_SCALE=0.445;
+const FINAL_IDLE_ORIGIN_Y=0.986;
 const FINAL_IDLE_FPS=6;
 const FINAL_IDLE_SEQUENCE=[0,1,2,3,2,1];
 
@@ -53,8 +53,8 @@ export function installFinalRumiIdle(GameScene){
 }
 
 export const FINAL_RUMI_IDLE_SPEC={
-  sourceCanvas:[384,448],
-  bodyHeightPx:384,
+  sourceCanvas:[160,296],
+  bodyHeightPx:288,
   runtimeScale:FINAL_IDLE_SCALE,
   origin:[0.5,FINAL_IDLE_ORIGIN_Y],
   frameRate:FINAL_IDLE_FPS,
