@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { rumiAnimationDataUrl } from '../assets/rumiAnimatedAssetLoader.js';
-import { finalRumiIdleFrames } from '../assets/finalRumiIdle/index.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor(){ super('Boot'); }
@@ -11,9 +10,10 @@ export default class BootScene extends Phaser.Scene {
     ['idle','run','jump','attack1','attack2','finisher','aerial','dodge'].forEach(name=>{
       this.load.image(`rumi_${name}`, `${import.meta.env.BASE_URL}assets/rumi_${name}.png?v=64`);
     });
-    // Production idle frames are embedded as validated transparent WebP data URLs.
-    // This avoids browser/deployment issues with the earlier malformed binary WebP files.
-    finalRumiIdleFrames.forEach((dataUrl,i)=>this.load.image(`rumi_idle_final_${i}`,dataUrl));
+    // Production idle frames are compact validated WebP files served directly from public/assets.
+    [0,1,2,3].forEach(i=>{
+      this.load.image(`rumi_idle_final_${i}`, `${import.meta.env.BASE_URL}assets/rumi_idle_0${i}.webp?v=2`);
+    });
     this.load.image('rumi_anim_atlas', rumiAnimationDataUrl);
   }
 
