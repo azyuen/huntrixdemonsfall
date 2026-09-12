@@ -1,19 +1,20 @@
 import Phaser from 'phaser';
 
 const GAME_HEIGHT = 720;
-const SOURCE_BODY_HEIGHT = 390;
+const SOURCE_FRAME_HEIGHT = 399;
 
 export const RUMI_SPEC = Object.freeze({
-  normalScreenRatio: 0.33,
-  bossScreenRatio: 0.27,
-  sourceCanvas: [216, 399],
-  sourceBodyHeight: SOURCE_BODY_HEIGHT,
-  normalScale: (GAME_HEIGHT * 0.33) / SOURCE_BODY_HEIGHT,
-  bossZoomFromNormal: 0.27 / 0.33,
+  // Visual calibration pass: the first 33% implementation still read too small in-game.
+  // This is intentionally larger so the character has the presence we want on mobile.
+  normalScreenRatio: 0.43,
+  futureBossScreenRatio: 0.27,
+  sourceCanvas: [216, SOURCE_FRAME_HEIGHT],
+  normalScale: (GAME_HEIGHT * 0.43) / SOURCE_FRAME_HEIGHT,
   originX: 0.5,
   originY: 0.985,
-  idleFps: 6,
-  idleSequence: [0, 1, 2, 3, 2, 1]
+  idleFps: 2.2,
+  idleSequence: [0, 1, 2, 3, 2, 1],
+  moveSpeed: 300
 });
 
 const idleKey = index => `rumi-idle-${index}`;
@@ -50,5 +51,10 @@ export default class Rumi extends Phaser.GameObjects.Sprite {
       .setScale(RUMI_SPEC.normalScale)
       .setDepth(10)
       .play('rumi-idle');
+  }
+
+  setFacing(direction) {
+    if (direction === 0) return;
+    this.setFlipX(direction < 0);
   }
 }
