@@ -6,6 +6,7 @@ export function installPolishPass(GameScene){
   const previousPerformAttack=GameScene.prototype.performAttack;
   const previousHitEnemy=GameScene.prototype.hitEnemy;
   const TARGET_ZOOM=1.54;
+  const RUMI_DISPLAY_SCALE=1.16;
 
   const preserveFixedUI=(scene,fromZoom,toZoom)=>{
     const cx=scene.scale.width/2,cy=scene.scale.height/2;
@@ -120,6 +121,7 @@ export function installPolishPass(GameScene){
     this.touch?.layoutForZoom?.(TARGET_ZOOM);
     const texture=this.textures.get('rumi_anim_atlas');
     texture?.setFilter?.(Phaser.Textures.FilterMode.LINEAR);
+    if(this.characterId==='rumi'&&this.rumiVisual&&this.rumiUsesAtlas)this.rumiVisual.setScale(RUMI_DISPLAY_SCALE);
     addAtmosphere(this);
     addRoofDetails(this);
     addGrounding(this);
@@ -149,10 +151,15 @@ export function installPolishPass(GameScene){
 
       if(this.characterId==='rumi'&&this.rumiVisual){
         const speed=Math.abs(body.velocity.x);
-        if(grounded&&speed<35&&!this.isAttacking){
-          const breathe=Math.sin(time/360)*.006;
-          this.rumiVisual.setScale(1.02*(1-breathe*.35),1.02*(1+breathe));
-        }else if(grounded&&speed>45&&!this.isAttacking){
+        if(this.rumiUsesAtlas){
+          if(grounded&&speed<35&&!this.isAttacking){
+            const breathe=Math.sin(time/360)*.006;
+            this.rumiVisual.setScale(RUMI_DISPLAY_SCALE*(1-breathe*.35),RUMI_DISPLAY_SCALE*(1+breathe));
+          }else{
+            this.rumiVisual.setScale(RUMI_DISPLAY_SCALE);
+          }
+        }
+        if(grounded&&speed>45&&!this.isAttacking){
           this.rumiVisual.setAngle((body.velocity.x>0?1:-1)*Phaser.Math.Clamp(speed/180,0,1.5));
         }
         if(grounded&&speed>235&&time>=this._polishNextStreak){
