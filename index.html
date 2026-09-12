@@ -2,45 +2,85 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#09051a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Demons Fall" />
-  <link rel="manifest" href="/huntrixdemonsfall/manifest.webmanifest?v=76" />
-  <title>HUNTR/X: Demons Fall</title>
+  <title>HUNTR/X: Demons Fall — V2</title>
   <style>
-    :root{background:#09051a;color-scheme:dark}
-    html,body,#app{margin:0;width:100%;height:100%;min-width:100%;min-height:100%;overflow:hidden;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;}
-    html,body{position:fixed;inset:0;width:100vw;height:100vh;width:100dvw;height:100dvh;background:#09051a;}
-    #app{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#09051a;}
-    canvas{display:block;margin:0;max-width:100%;max-height:100%;position:relative;z-index:1;}
-    #status{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;color:#fff;background:#09051a;font:600 24px system-ui;text-align:center;padding:24px}
-    #status small{display:block;margin-top:12px;font:400 14px system-ui;color:#bdb4d8}
-    #rotate{display:none;position:fixed;inset:0;z-index:10;background:#09051a;color:white;align-items:center;justify-content:center;text-align:center;font:600 22px system-ui;padding:32px}
-    #build{position:fixed;left:max(10px,env(safe-area-inset-left));bottom:max(8px,env(safe-area-inset-bottom));z-index:9999;padding:4px 7px;border-radius:7px;background:#ff2da8;color:#fff;font:700 10px system-ui;letter-spacing:.5px;pointer-events:none}
-    @media(orientation:portrait) and (max-width:900px){#rotate{display:flex}}
+    html, body, #app {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #09051a;
+      touch-action: none;
+      user-select: none;
+    }
+    body {
+      position: fixed;
+      inset: 0;
+    }
+    #app {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+    }
+    #status,
+    #rotate {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      color: #fff;
+      background: #09051a;
+      font: 600 22px system-ui, sans-serif;
+      z-index: 10;
+    }
+    #rotate { display: none; }
+    #build {
+      position: fixed;
+      right: max(10px, env(safe-area-inset-right));
+      bottom: max(8px, env(safe-area-inset-bottom));
+      padding: 5px 8px;
+      border-radius: 7px;
+      background: rgba(18, 10, 45, .82);
+      color: #d8cfff;
+      font: 700 10px system-ui, sans-serif;
+      letter-spacing: .6px;
+      z-index: 20;
+      pointer-events: none;
+    }
+    @media (orientation: portrait) and (max-width: 900px) {
+      #rotate { display: flex; }
+    }
   </style>
 </head>
 <body>
   <div id="app"></div>
-  <div id="status">Loading HUNTR/X: Demons Fall…<small>If this message remains, the game script did not start.</small></div>
-  <div id="rotate">Rotate your device to landscape to play.</div>
-  <div id="build">BUILD 76</div>
+  <div id="status">Loading clean V2…</div>
+  <div id="rotate">Rotate your device to landscape.</div>
+  <div id="build">V2 • MILESTONE 1</div>
   <script>
-    window.addEventListener('error', function (e) {
-      var s=document.getElementById('status');
-      if(s){s.innerHTML='Game error:<br><small>'+String(e.message||'Unknown error')+'</small>';}
+    window.addEventListener('error', event => {
+      const status = document.getElementById('status');
+      if (status) status.textContent = `Game error: ${event.message || 'Unknown error'}`;
     });
-    window.addEventListener('unhandledrejection', function (e) {
-      var s=document.getElementById('status');
-      if(s){s.innerHTML='Game error:<br><small>'+String((e.reason&&e.reason.message)||e.reason||'Unhandled promise rejection')+'</small>';}
+    window.addEventListener('unhandledrejection', event => {
+      const status = document.getElementById('status');
+      const reason = event.reason?.message || event.reason || 'Unhandled promise rejection';
+      if (status) status.textContent = `Game error: ${reason}`;
     });
   </script>
-  <script type="module" src="/src/main.js?v=76"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
