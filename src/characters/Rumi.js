@@ -4,12 +4,11 @@ const GAME_HEIGHT = 720;
 const SOURCE_FRAME_HEIGHT = 399;
 
 export const RUMI_SPEC = Object.freeze({
-  // Visual calibration pass: the first 33% implementation still read too small in-game.
-  // This is intentionally larger so the character has the presence we want on mobile.
-  normalScreenRatio: 0.43,
+  // Visual calibration pass: make Rumi substantially larger on mobile.
+  normalScreenRatio: 0.52,
   futureBossScreenRatio: 0.27,
   sourceCanvas: [216, SOURCE_FRAME_HEIGHT],
-  normalScale: (GAME_HEIGHT * 0.43) / SOURCE_FRAME_HEIGHT,
+  normalScale: (GAME_HEIGHT * 0.52) / SOURCE_FRAME_HEIGHT,
   originX: 0.5,
   originY: 0.985,
   idleFps: 2.2,
