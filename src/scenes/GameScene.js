@@ -8,9 +8,7 @@ const MIN_X = 180;
 const MAX_X = WIDTH - 180;
 
 export default class GameScene extends Phaser.Scene {
-  constructor() {
-    super('Game');
-  }
+  constructor() { super('Game'); }
 
   preload() {
     this.load.image('seoul-sky', `${import.meta.env.BASE_URL}assets/seoul_skyline_strip.jpg?v=2`);
@@ -19,7 +17,6 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#09051a');
-
     const sky = this.add.image(WIDTH / 2, HEIGHT / 2, 'seoul-sky');
     sky.setDisplaySize(WIDTH, HEIGHT).setAlpha(0.72).setDepth(-20);
     this.add.rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x120a2d, 0.35).setDepth(-19);
@@ -27,23 +24,24 @@ export default class GameScene extends Phaser.Scene {
     this.add.rectangle(WIDTH / 2, GROUND_Y, WIDTH, 8, 0x65557d).setDepth(1);
 
     this.rumi = new Rumi(this, WIDTH / 2, GROUND_Y);
-
     this.keys = this.input.keyboard.addKeys({
       left: Phaser.Input.Keyboard.KeyCodes.LEFT,
       right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
       a: Phaser.Input.Keyboard.KeyCodes.A,
-      d: Phaser.Input.Keyboard.KeyCodes.D
+      d: Phaser.Input.Keyboard.KeyCodes.D,
+      attack: Phaser.Input.Keyboard.KeyCodes.SPACE
     });
 
     this.leftHeld = false;
     this.rightHeld = false;
     this.createMoveButton(120, 625, '◀', () => { this.leftHeld = true; }, () => { this.leftHeld = false; });
     this.createMoveButton(260, 625, '▶', () => { this.rightHeld = true; }, () => { this.rightHeld = false; });
+    this.createAttackButton(1430, 615);
 
-    this.add.text(28, 26, 'HUNTR/X — V2 RUMI TEST', {
+    this.add.text(28, 26, 'HUNTR/X — RUMI ATTACK TEST', {
       fontFamily: 'system-ui, sans-serif', fontSize: '22px', fontStyle: '700', color: '#ffffff'
     }).setDepth(20);
-    this.add.text(28, 58, '33% VISIBLE HEIGHT • STABLE WEBP TEST • LEFT/RIGHT', {
+    this.add.text(28, 58, 'LEFT/RIGHT • SPACE OR ATTACK BUTTON', {
       fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#c8bde4'
     }).setDepth(20);
 
@@ -53,17 +51,23 @@ export default class GameScene extends Phaser.Scene {
 
   createMoveButton(x, y, label, onDown, onUp) {
     const circle = this.add.circle(x, y, 52, 0x241a46, 0.72)
-      .setStrokeStyle(3, 0x9c7cff, 0.8)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
+      .setStrokeStyle(3, 0x9c7cff, 0.8).setDepth(30).setInteractive({ useHandCursor: true });
     this.add.text(x, y - 2, label, {
       fontFamily: 'system-ui, sans-serif', fontSize: '36px', color: '#ffffff'
     }).setOrigin(0.5).setDepth(31);
-
     circle.on('pointerdown', onDown);
     circle.on('pointerup', onUp);
     circle.on('pointerout', onUp);
     circle.on('pointerupoutside', onUp);
+  }
+
+  createAttackButton(x, y) {
+    const circle = this.add.circle(x, y, 62, 0x55215f, 0.82)
+      .setStrokeStyle(3, 0xff8de8, 0.9).setDepth(30).setInteractive({ useHandCursor: true });
+    this.add.text(x, y, 'ATTACK', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: '700', color: '#ffffff'
+    }).setOrigin(0.5).setDepth(31);
+    circle.on('pointerdown', () => this.rumi.startAttack(this.time.now));
   }
 
   update(time, delta) {
@@ -71,13 +75,12 @@ export default class GameScene extends Phaser.Scene {
     const right = this.rightHeld || this.keys.right.isDown || this.keys.d.isDown;
     const direction = left === right ? 0 : (left ? -1 : 1);
 
+    if (Phaser.Input.Keyboard.JustDown(this.keys.attack)) this.rumi.startAttack(time);
     this.rumi.updateMotion(time, direction !== 0);
 
-    if (direction !== 0) {
+    if (direction !== 0 && !this.rumi.attacking) {
       this.rumi.x = Phaser.Math.Clamp(
-        this.rumi.x + direction * RUMI_SPEC.moveSpeed * (delta / 1000),
-        MIN_X,
-        MAX_X
+        this.rumi.x + direction * RUMI_SPEC.moveSpeed * (delta / 1000), MIN_X, MAX_X
       );
       this.rumi.setFacing(direction);
     }
