@@ -5,41 +5,41 @@ const GAME_HEIGHT = 720;
 const TARGET_BODY_HEIGHT = GAME_HEIGHT * 0.33;
 const IDLE_SOURCE_BODY_HEIGHT = 373;
 const RUN_SOURCE_BODY_HEIGHT = 292;
+const ATTACK_SOURCE_BODY_HEIGHT = 330;
 const IDLE_ORIGIN_Y = 1;
 const RUN_ORIGIN_Y = 0.97;
+const ATTACK_ORIGIN_Y = 0.94;
 
-const RUN_FRAMES = [
-  'rumi-run-0',
-  'rumi-run-1',
-  'rumi-run-2',
-  'rumi-run-3',
-  'rumi-run-4'
-];
+const RUN_FRAMES = ['rumi-run-0', 'rumi-run-1', 'rumi-run-2', 'rumi-run-3', 'rumi-run-4'];
+const ATTACK_FRAME_COUNT = 9;
 
 export const RUMI_SPEC = Object.freeze({
   visibleBodyRatio: 0.33,
   futureBossScreenRatio: 0.27,
   idleScale: TARGET_BODY_HEIGHT / IDLE_SOURCE_BODY_HEIGHT,
   runScale: TARGET_BODY_HEIGHT / RUN_SOURCE_BODY_HEIGHT,
+  attackScale: TARGET_BODY_HEIGHT / ATTACK_SOURCE_BODY_HEIGHT,
   originX: 0.5,
   idleOriginY: IDLE_ORIGIN_Y,
   runOriginY: RUN_ORIGIN_Y,
+  attackOriginY: ATTACK_ORIGIN_Y,
   moveSpeed: 300,
-  runFrameMs: 100
+  runFrameMs: 100,
+  attackFrameMs: 90
 });
 
 export default class Rumi extends Phaser.GameObjects.Image {
   static preload(scene) {
-    // Keep the already-proven canonical idle frame while the new run cycle uses
-    // five independently materialized and SHA-verified transparent WebPs.
     scene.load.image('rumi-stable-idle', rumiStableIdleDataUrl);
 
     const base = import.meta.env.BASE_URL;
     RUN_FRAMES.forEach((key, index) => {
-      scene.load.image(
-        key,
-        `${base}assets/rumi_run_${String(index + 1).padStart(2, '0')}.webp?v=1`
-      );
+      scene.load.image(key, `${base}assets/rumi_run_${String(index + 1).padStart(2, '0')}.webp?v=1`);
+    });
+
+    scene.load.spritesheet('rumi-attack1-sheet', `${base}assets/characters/rumi/Rumi_attack1.PNG?v=1`, {
+      frameWidth: 384,
+      frameHeight: 384
     });
   }
 
@@ -47,44 +47,73 @@ export default class Rumi extends Phaser.GameObjects.Image {
     super(scene, x, groundY, 'rumi-stable-idle');
     scene.add.existing(this);
 
-    this
-      .setOrigin(RUMI_SPEC.originX, RUMI_SPEC.idleOriginY)
+    this.setOrigin(RUMI_SPEC.originX, RUMI_SPEC.idleOriginY)
       .setScale(RUMI_SPEC.idleScale)
       .setDepth(10);
 
     this.motionMode = 'idle';
     this.frameIndex = -1;
     this.nextFrameAt = 0;
+    this.attackFrame = 0;
+    this.attacking = false;
   }
 
   setFacing(direction) {
     if (direction !== 0) this.setFlipX(direction < 0);
   }
 
-  setMode(mode, time) {
-    if (this.motionMode === mode) return;
+  startAttack(time) {
+    if (this.attacking) return;
+    this.attacking = true;
+    this.motionMode = 'attack1';
+    this.attackFrame = 0;
+    this.nextFrameAt = time;
+    this.setTexture('rumi-attack1-sheet', 0)
+      .setOrigin(RUMI_SPEC.originX, RUMI_SPEC.attackOriginY)
+      .setScale(RUMI_SPEC.attackScale);
+  }
 
+  finishAttack(time) {
+    this.attacking = false;
+    this.motionMode = 'idle';
+    this.frameIndex = -1;
+    this.nextFrameAt = time;
+    this.setTexture('rumi-stable-idle')
+      .setOrigin(RUMI_SPEC.originX, RUMI_SPEC.idleOriginY)
+      .setScale(RUMI_SPEC.idleScale);
+  }
+
+  setMode(mode, time) {
+    if (this.attacking || this.motionMode === mode) return;
     this.motionMode = mode;
     this.frameIndex = -1;
     this.nextFrameAt = time;
 
     if (mode === 'run') {
-      this
-        .setOrigin(RUMI_SPEC.originX, RUMI_SPEC.runOriginY)
-        .setScale(RUMI_SPEC.runScale);
+      this.setOrigin(RUMI_SPEC.originX, RUMI_SPEC.runOriginY).setScale(RUMI_SPEC.runScale);
       return;
     }
 
-    this
-      .setTexture('rumi-stable-idle')
+    this.setTexture('rumi-stable-idle')
       .setOrigin(RUMI_SPEC.originX, RUMI_SPEC.idleOriginY)
       .setScale(RUMI_SPEC.idleScale);
   }
 
   updateMotion(time, isMoving) {
+    if (this.attacking) {
+      if (time < this.nextFrameAt) return;
+      if (this.attackFrame >= ATTACK_FRAME_COUNT) {
+        this.finishAttack(time);
+        return;
+      }
+      this.setTexture('rumi-attack1-sheet', this.attackFrame);
+      this.attackFrame += 1;
+      this.nextFrameAt = time + RUMI_SPEC.attackFrameMs;
+      return;
+    }
+
     const mode = isMoving ? 'run' : 'idle';
     this.setMode(mode, time);
-
     if (mode !== 'run' || time < this.nextFrameAt) return;
 
     this.frameIndex = (this.frameIndex + 1) % RUN_FRAMES.length;
