@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Rumi Static Mesh Test</title>
+<style>html,body,#application{margin:0;width:100%;height:100%;overflow:hidden;background:#171231}#status{position:fixed;z-index:10;top:12px;left:12px;right:12px;color:#fff;background:#0009;padding:8px 10px;border-radius:8px;font:700 13px system-ui}</style>
+</head>
+<body>
+<canvas id="application"></canvas><div id="status">Starting…</div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.22.2/build/playcanvas.mjs';
+const status=document.getElementById('status'); const say=s=>{status.textContent=s;console.log(s)};
+const canvas=document.getElementById('application');
+const app=new pc.Application(canvas,{graphicsDeviceOptions:{antialias:true}}); app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW); app.setCanvasResolution(pc.RESOLUTION_AUTO); app.start();
+window.addEventListener('resize',()=>app.resizeCanvas());
+const cam=new pc.Entity('camera'); cam.addComponent('camera',{clearColor:new pc.Color(.09,.07,.2)}); cam.setPosition(0,1.05,5.2); cam.lookAt(0,.9,0); app.root.addChild(cam);
+const light=new pc.Entity('light'); light.addComponent('light',{type:'directional',intensity:2.2,color:new pc.Color(1,.95,1)}); light.setEulerAngles(35,25,0); app.root.addChild(light);
+const mat=new pc.StandardMaterial(); mat.diffuse=new pc.Color(.25,.2,.45); mat.update(); const floor=new pc.Entity('floor'); floor.addComponent('render',{type:'box',material:mat}); floor.setLocalScale(5,.08,2.5); floor.setPosition(0,-.04,0); app.root.addChild(floor);
+
+function stripSkin(arrayBuffer){
+ const dv=new DataView(arrayBuffer); if(dv.getUint32(0,true)!==0x46546c67) throw new Error('Not GLB');
+ let off=12,jsonChunk=null,binChunk=null;
+ while(off<dv.byteLength){const len=dv.getUint32(off,true),type=dv.getUint32(off+4,true),start=off+8;if(type===0x4e4f534a)jsonChunk=new Uint8Array(arrayBuffer,start,len);if(type===0x004e4942)binChunk=new Uint8Array(arrayBuffer,start,len);off=start+len;}
+ const gltf=JSON.parse(new TextDecoder().decode(jsonChunk).replace(/[\u0000 ]+$/,''));
+ for(const node of gltf.nodes||[]) delete node.skin;
+ for(const mesh of gltf.meshes||[]) for(const p of mesh.primitives||[]){if(p.attributes){delete p.attributes.JOINTS_0;delete p.attributes.WEIGHTS_0;delete p.attributes.JOINTS_1;delete p.attributes.WEIGHTS_1;}}
+ delete gltf.skins;
+ const jsonRaw=new TextEncoder().encode(JSON.stringify(gltf)), jsonLen=(jsonRaw.length+3)&~3, binLen=(binChunk.length+3)&~3, total=12+8+jsonLen+8+binLen;
+ const out=new ArrayBuffer(total), ov=new DataView(out), ob=new Uint8Array(out); ov.setUint32(0,0x46546c67,true);ov.setUint32(4,2,true);ov.setUint32(8,total,true);ov.setUint32(12,jsonLen,true);ov.setUint32(16,0x4e4f534a,true);ob.fill(0x20,20,20+jsonLen);ob.set(jsonRaw,20);const bh=20+jsonLen;ov.setUint32(bh,binLen,true);ov.setUint32(bh+4,0x004e4942,true);ob.set(binChunk,bh+8);return out;
+}
+
+try{
+ say('Fetching Rumi…'); const res=await fetch('./assets/rumi.glb?static=2',{cache:'no-store'}); if(!res.ok)throw new Error('HTTP '+res.status); const raw=await res.arrayBuffer();
+ say('Removing skinning…'); const staticGlb=stripSkin(raw); const url=URL.createObjectURL(new Blob([staticGlb],{type:'model/gltf-binary'}));
+ app.assets.loadFromUrlAndFilename(url,'rumi-static.glb','container',(err,asset)=>{
+   if(err){say('LOAD ERROR: '+err);return;}
+   try{const ent=asset.resource.instantiateRenderEntity({castShadows:true});ent.setLocalScale(.01,.01,.01);ent.setLocalEulerAngles(0,0,0);ent.setLocalPosition(0,0,0);app.root.addChild(ent);const rs=ent.findComponents('render');const mi=rs.reduce((n,r)=>n+r.meshInstances.length,0);say(`STATIC SUCCESS • ${rs.length} render components • ${mi} mesh instances`);}catch(e){say('INSTANTIATE ERROR: '+e.message)}
+ });
+}catch(e){say('ERROR: '+e.message)}
+</script>
+</body>
+</html>
