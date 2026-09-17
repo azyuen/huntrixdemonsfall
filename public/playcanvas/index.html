@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#100d2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="HUNTR/X Arena" />
+  <title>HUNTR/X Arena — PlayCanvas Prototype</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "playcanvas": "https://cdn.jsdelivr.net/npm/playcanvas@2.22.2/build/playcanvas.mjs",
+      "@playcanvas/web-components": "https://cdn.jsdelivr.net/npm/@playcanvas/web-components@0.23.0/dist/pwc.min.mjs"
+    }
+  }
+  </script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@playcanvas/web-components@0.23.0/dist/pwc.min.mjs"></script>
+
+  <style>
+    :root {
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #100d2b; }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; touch-action: none; overscroll-behavior: none; user-select: none; }
+
+    pc-app {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      display: block;
+    }
+
+    #hud {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+      color: white;
+      text-shadow: 0 2px 6px rgba(0,0,0,.65);
+    }
+
+    .topbar {
+      position: absolute;
+      top: calc(var(--safe-top) + 12px);
+      left: calc(var(--safe-left) + 16px);
+      right: calc(var(--safe-right) + 16px);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .brand { font-size: clamp(14px, 2.2vw, 24px); font-weight: 900; letter-spacing: .08em; }
+    .sub { margin-top: 3px; font-size: clamp(9px, 1.3vw, 12px); opacity: .72; font-weight: 700; letter-spacing: .08em; }
+    #status { text-align: right; font-size: clamp(10px, 1.4vw, 13px); font-weight: 750; opacity: .82; }
+
+    .hint {
+      position: absolute;
+      top: calc(var(--safe-top) + 55px);
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 999px;
+      background: rgba(8,7,27,.45);
+      backdrop-filter: blur(8px);
+      font-size: clamp(9px, 1.2vw, 12px);
+      white-space: nowrap;
+      opacity: .82;
+    }
+
+    #controls {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .cluster {
+      position: absolute;
+      bottom: calc(var(--safe-bottom) + 16px);
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      pointer-events: auto;
+    }
+    .cluster.left { left: calc(var(--safe-left) + 18px); }
+    .cluster.right { right: calc(var(--safe-right) + 18px); }
+
+    .game-btn {
+      width: clamp(58px, 9.2vw, 86px);
+      height: clamp(58px, 9.2vw, 86px);
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.34);
+      background: rgba(20,15,56,.58);
+      color: #fff;
+      backdrop-filter: blur(8px);
+      box-shadow: inset 0 0 18px rgba(255,255,255,.07), 0 6px 18px rgba(0,0,0,.25);
+      display: grid;
+      place-items: center;
+      font-size: clamp(22px, 4vw, 34px);
+      font-weight: 900;
+      touch-action: none;
+    }
+    .game-btn.small { width: clamp(52px, 8vw, 72px); height: clamp(52px, 8vw, 72px); font-size: clamp(18px, 3vw, 28px); }
+    .game-btn.attack { background: rgba(155,58,255,.62); border-color: rgba(226,191,255,.65); }
+    .game-btn:active, .game-btn.active { transform: scale(.94); background: rgba(118,83,219,.78); }
+
+    #rotate {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      place-items: center;
+      text-align: center;
+      padding: 30px;
+      color: white;
+      background: #100d2b;
+      font-weight: 800;
+    }
+
+    @media (orientation: portrait) {
+      #rotate { display: grid; }
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .game-btn { opacity: .55; }
+    }
+  </style>
+</head>
+<body>
+  <pc-app antialias="true" max-pixel-ratio="1.5">
+    <pc-asset id="rumiAsset" type="container" src="./assets/rumi.glb"></pc-asset>
+
+    <pc-material id="stageMat" diffuse="#342c70" roughness="0.82"></pc-material>
+    <pc-material id="platformMat" diffuse="#6d57ad" roughness="0.72"></pc-material>
+    <pc-material id="backdropMat" diffuse="#15123b" emissive="#080617" emissive-intensity="0.7"></pc-material>
+    <pc-material id="city1" diffuse="#211b55" emissive="#100b33" emissive-intensity="0.55"></pc-material>
+    <pc-material id="city2" diffuse="#302266" emissive="#160b3c" emissive-intensity="0.55"></pc-material>
+    <pc-material id="neonMat" diffuse="#b653ff" emissive="#8d25f5" emissive-intensity="2"></pc-material>
+    <pc-material id="demonMat" diffuse="#25172f" roughness="0.9"></pc-material>
+    <pc-material id="demonFace" diffuse="#ef59ff" emissive="#ca2fff" emissive-intensity="2"></pc-material>
+    <pc-material id="fallbackMat" diffuse="#a958e7" roughness="0.75"></pc-material>
+
+    <pc-scene>
+      <pc-entity name="camera" position="0 3.2 12.5" rotation="-6 0 0">
+        <pc-camera clear-color="#17123a"></pc-camera>
+      </pc-entity>
+
+      <pc-entity name="keyLight" rotation="38 28 0">
+        <pc-light type="directional" color="#f2e9ff" intensity="1.55" cast-shadows shadow-distance="28"></pc-light>
+      </pc-entity>
+      <pc-entity name="rimLight" rotation="-25 -150 0">
+        <pc-light type="directional" color="#b85cff" intensity="0.75"></pc-light>
+      </pc-entity>
+
+      <!-- Flat backdrop layer -->
+      <pc-entity name="backdrop" position="0 3 -4.4" rotation="90 0 0" scale="24 1 10">
+        <pc-render type="plane" material="backdropMat" cast-shadows="false" receive-shadows="false"></pc-render>
+      </pc-entity>
+
+      <!-- Very cheap '2D-ish' skyline silhouettes -->
+      <pc-entity position="-7 2.0 -4.0" scale="2.0 4.0 .35"><pc-render type="box" material="city1" cast-shadows="false"></pc-render></pc-entity>
+      <pc-entity position="-4.8 1.55 -4.05" scale="1.4 3.1 .28"><pc-render type="box" material="city2" cast-shadows="false"></pc-render></pc-entity>
+      <pc-entity position="-2.9 2.45 -4.1" scale="1.7 4.9 .25"><pc-render type="box" material="city1" cast-shadows="false"></pc-render></pc-entity>
+      <pc-entity position="-.8 1.3 -4.05" scale="1.7 2.6 .3"><pc-render type="box" material="city2" cast-shadows="false"></pc-render></pc-entity>
+      <pc-entity position="1.4 2.15 -4.0" scale="2.0 4.3 .28"><pc-render type="box" material="city1" cast-shadows="false"></pc-render></pc-entity>
+      <pc-entity position="3.7 1.55 -4.05" scale="1.5 3.1 .3"><pc-render type="box" material="city2" cast-shadows="false"></pc-render></pc-entity>
+      <pc-entity position="5.8 2.65 -4.1" scale="2.1 5.3 .25"><pc-render type="box" material="city1" cast-shadows="false"></pc-render></pc-entity>
+      <pc-entity position="8.0 1.5 -4.05" scale="1.8 3.0 .3"><pc-render type="box" material="city2" cast-shadows="false"></pc-render></pc-entity>
+
+      <!-- Neon strips give the flat background some life without real scenery -->
+      <pc-entity position="-3.0 3.4 -3.78" scale=".8 .035 .04" rotation="0 0 -12"><pc-render type="box" material="neonMat" cast-shadows="false"></pc-render></pc-entity>
+      <pc-entity position="3.7 2.2 -3.78" scale=".65 .025 .04" rotation="0 0 8"><pc-render type="box" material="neonMat" cast-shadows="false"></pc-render></pc-entity>
+
+      <!-- Actual playable geometry -->
+      <pc-entity name="floor" position="0 -.22 0" scale="14 .44 2.2">
+        <pc-render type="box" material="stageMat" cast-shadows receive-shadows></pc-render>
+      </pc-entity>
+      <pc-entity name="leftPlatform" position="-3.6 1.55 0" scale="3.0 .28 1.5">
+        <pc-render type="box" material="platformMat" cast-shadows receive-shadows></pc-render>
+      </pc-entity>
+      <pc-entity name="rightPlatform" position="3.3 2.3 0" scale="2.8 .28 1.5">
+        <pc-render type="box" material="platformMat" cast-shadows receive-shadows></pc-render>
+      </pc-entity>
+
+      <!-- Player wrapper keeps gameplay transform separate from model transform. -->
+      <pc-entity id="player" name="player" position="-2 0 0">
+        <pc-model id="rumi" name="Rumi" asset="rumiAsset" scale=".01 .01 .01" rotation="0 90 0"></pc-model>
+
+        <!-- Visible only if Rumi GLB is missing. -->
+        <pc-entity id="fallback" name="fallback" enabled="false" position="0 .85 0" scale=".62 1.7 .45">
+          <pc-render type="capsule" material="fallbackMat"></pc-render>
+        </pc-entity>
+
+        <!-- Cheap attack streak; not intended to be final VFX. -->
+        <pc-entity id="slash" name="slash" enabled="false" position=".95 1.05 .1" scale="1.25 .075 .075" rotation="0 0 -22">
+          <pc-render type="box" material="neonMat" cast-shadows="false"></pc-render>
+        </pc-entity>
+      </pc-entity>
+
+      <!-- Stationary training demon -->
+      <pc-entity id="dummy" name="training-demon" position="3.7 0 0">
+        <pc-entity position="0 .75 0" scale=".66 1.35 .5"><pc-render type="capsule" material="demonMat"></pc-render></pc-entity>
+        <pc-entity position="0 1.55 0" scale=".57 .57 .48"><pc-render type="sphere" material="demonMat"></pc-render></pc-entity>
+        <pc-entity position="-.24 1.93 0" scale=".14 .45 .14" rotation="0 0 -20"><pc-render type="cone" material="demonMat"></pc-render></pc-entity>
+        <pc-entity position=".24 1.93 0" scale=".14 .45 .14" rotation="0 0 20"><pc-render type="cone" material="demonMat"></pc-render></pc-entity>
+        <pc-entity position="-.12 1.58 .25" scale=".07 .035 .035"><pc-render type="sphere" material="demonFace" cast-shadows="false"></pc-render></pc-entity>
+        <pc-entity position=".12 1.58 .25" scale=".07 .035 .035"><pc-render type="sphere" material="demonFace" cast-shadows="false"></pc-render></pc-entity>
+      </pc-entity>
+    </pc-scene>
+  </pc-app>
+
+  <div id="hud">
+    <div class="topbar">
+      <div>
+        <div class="brand">HUNTR/X ARENA</div>
+        <div class="sub">PLAYCANVAS • 2.5D PROTOTYPE</div>
+      </div>
+      <div id="status">Loading Rumi…</div>
+    </div>
+    <div class="hint">Prototype: movement + jump + placeholder attack • no character animations yet</div>
+  </div>
+
+  <div id="controls">
+    <div class="cluster left">
+      <button class="game-btn" id="left" aria-label="Move left">‹</button>
+      <button class="game-btn" id="right" aria-label="Move right">›</button>
+    </div>
+    <div class="cluster right">
+      <button class="game-btn small" id="jump" aria-label="Jump">↑</button>
+      <button class="game-btn attack" id="attack" aria-label="Attack">⚔</button>
+    </div>
+  </div>
+
+  <div id="rotate">Rotate your phone to landscape<br><span style="font-size:14px;opacity:.65;margin-top:8px">This prototype is designed like a mobile fighting game.</span></div>
+
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
