@@ -30,7 +30,7 @@ const JUMP_SPEED = 6.45;
 const GRAVITY = -16.5;
 const STAGE_MIN_X = -6.7;
 const STAGE_MAX_X = 6.7;
-const RUMI_SCALE = 0.4;
+const RUMI_SCALE = 0.01;
 
 const surfaces = [
   { xMin: -50, xMax: 50, y: 0 },
@@ -116,7 +116,9 @@ function surfaceUnder(x, fromY, toY) {
 }
 
 function updateFacing(rumiEntity) {
-  rumiEntity.setLocalEulerAngles(0, state.facing > 0 ? 90 : -90, 0);
+  // The source GLB has a -90° X root transform. Compensate with +90° X
+  // on the host, then yaw ±90° so the fighter faces along the gameplay axis.
+  rumiEntity.setLocalEulerAngles(90, state.facing > 0 ? 90 : -90, 0);
 }
 
 function pulseDummy(dummyEntity, dt) {
@@ -147,7 +149,7 @@ async function boot() {
     fallbackEntity.enabled = false;
     rumiModelEl.entity.enabled = true;
     rumiEntity.setLocalScale(RUMI_SCALE, RUMI_SCALE, RUMI_SCALE);
-    setStatus('Rumi loaded • prototype ready');
+    setStatus('Rumi loaded • upright transform applied');
   }
 
   updateFacing(rumiEntity);
@@ -220,7 +222,7 @@ async function boot() {
         if (distance < 1.75 && facingDummy && Math.abs(state.y) < 1.15) {
           state.hitFlashTimer = 0.18;
           setStatus('HIT! • placeholder combat works');
-          window.setTimeout(() => setStatus(state.fallback ? 'Prototype ready • Rumi model failed to load' : 'Rumi loaded • prototype ready'), 520);
+          window.setTimeout(() => setStatus(state.fallback ? 'Prototype ready • Rumi model failed to load' : 'Rumi loaded • upright transform applied'), 520);
         }
       }
     }
