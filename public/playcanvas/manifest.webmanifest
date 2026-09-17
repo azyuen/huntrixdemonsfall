@@ -1,0 +1,11 @@
+{
+  "name": "HUNTR/X Arena Prototype",
+  "short_name": "HUNTR/X Arena",
+  "description": "Mobile 2.5D PlayCanvas fighting-game prototype.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#100d2b",
+  "theme_color": "#100d2b"
+}
