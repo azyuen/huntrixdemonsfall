@@ -2,8 +2,6 @@ import { whenReady } from '@playcanvas/web-components';
 
 const statusEl = document.getElementById('status');
 const rumiModelEl = document.getElementById('rumi');
-const fallbackEl = document.getElementById('fallback');
-const slashEl = document.getElementById('slash');
 const appEl = document.querySelector('pc-app');
 const rumiAssetEl = document.getElementById('rumiAsset');
 
@@ -32,9 +30,8 @@ const JUMP_SPEED = 6.45;
 const GRAVITY = -16.5;
 const STAGE_MIN_X = -6.7;
 const STAGE_MAX_X = 6.7;
+const RUMI_SCALE = 0.4;
 
-// Platforms are simple rectangles in the 2.5D gameplay plane.
-// y is the top surface; xMin/xMax are landable horizontal extents.
 const surfaces = [
   { xMin: -50, xMax: 50, y: 0 },
   { xMin: -5.10, xMax: -2.10, y: 1.69 },
@@ -47,20 +44,17 @@ function setStatus(text) {
 
 function bindHoldButton(id, key) {
   const button = document.getElementById(id);
-
   const down = (event) => {
     event.preventDefault();
     input[key] = true;
     button.classList.add('active');
     try { button.setPointerCapture(event.pointerId); } catch (_) {}
   };
-
   const up = (event) => {
     event.preventDefault();
     input[key] = false;
     button.classList.remove('active');
   };
-
   button.addEventListener('pointerdown', down, { passive: false });
   button.addEventListener('pointerup', up, { passive: false });
   button.addEventListener('pointercancel', up, { passive: false });
@@ -75,12 +69,10 @@ function bindPressButton(id, callback) {
     callback();
     try { button.setPointerCapture(event.pointerId); } catch (_) {}
   }, { passive: false });
-
   const release = (event) => {
     event.preventDefault();
     button.classList.remove('active');
   };
-
   button.addEventListener('pointerup', release, { passive: false });
   button.addEventListener('pointercancel', release, { passive: false });
   button.addEventListener('lostpointercapture', release, { passive: false });
@@ -108,23 +100,14 @@ window.addEventListener('blur', () => {
   input.right = false;
 });
 
-// A missing GLB is expected until the user uploads assets/rumi.glb.
-rumiAssetEl.addEventListener('error', () => {
-  state.fallback = true;
-});
-rumiModelEl.addEventListener('error', () => {
-  state.fallback = true;
-});
-
-appEl.addEventListener('error', (event) => {
-  setStatus(`3D failed to start: ${event.message}`);
-});
+rumiAssetEl.addEventListener('error', () => { state.fallback = true; });
+rumiModelEl.addEventListener('error', () => { state.fallback = true; });
+appEl.addEventListener('error', (event) => setStatus(`3D failed to start: ${event.message}`));
 
 function surfaceUnder(x, fromY, toY) {
   let best = null;
   for (const surface of surfaces) {
     if (x < surface.xMin || x > surface.xMax) continue;
-    // Only catch a surface when moving downward through its top.
     if (fromY >= surface.y - 0.03 && toY <= surface.y + 0.03) {
       if (!best || surface.y > best.y) best = surface;
     }
@@ -133,11 +116,7 @@ function surfaceUnder(x, fromY, toY) {
 }
 
 function updateFacing(rumiEntity) {
-  // The source model is authored in a Fortnite/Unreal-style orientation.
-  // If its front turns out opposite on first real-model test, these two yaws
-  // are the only values we need to swap.
-  const yaw = state.facing > 0 ? 90 : -90;
-  rumiEntity.setLocalEulerAngles(0, yaw, 0);
+  rumiEntity.setLocalEulerAngles(0, state.facing > 0 ? 90 : -90, 0);
 }
 
 function pulseDummy(dummyEntity, dt) {
@@ -145,7 +124,6 @@ function pulseDummy(dummyEntity, dt) {
     dummyEntity.setLocalScale(1, 1, 1);
     return;
   }
-
   state.hitFlashTimer -= dt;
   const squeeze = 1 - Math.sin(state.hitFlashTimer * 45) * 0.08;
   dummyEntity.setLocalScale(1.08, squeeze, 1.08);
@@ -159,25 +137,22 @@ async function boot() {
   const { entity: dummyEntity } = await whenReady('#dummy');
   const { entity: rumiEntity } = await whenReady('#rumi');
 
-  // pc-model readiness includes a settled failed load, so contentEntity is
-  // the definitive success check.
   if (!rumiModelEl.contentEntity) {
     state.fallback = true;
     rumiModelEl.entity.enabled = false;
     fallbackEntity.enabled = true;
-    setStatus('Prototype ready • upload rumi.glb for real Rumi');
+    setStatus('Prototype ready • Rumi model failed to load');
   } else {
     state.fallback = false;
     fallbackEntity.enabled = false;
     rumiModelEl.entity.enabled = true;
+    rumiEntity.setLocalScale(RUMI_SCALE, RUMI_SCALE, RUMI_SCALE);
     setStatus('Rumi loaded • prototype ready');
   }
 
   updateFacing(rumiEntity);
 
   app.on('update', (dt) => {
-    // Clamp a long background-tab frame so the character cannot tunnel
-    // through platforms after Safari resumes.
     dt = Math.min(dt, 1 / 20);
 
     let move = 0;
@@ -189,8 +164,7 @@ async function boot() {
       updateFacing(rumiEntity);
     }
 
-    const control = state.grounded ? 1 : AIR_CONTROL;
-    state.x += move * MOVE_SPEED * control * dt;
+    state.x += move * MOVE_SPEED * (state.grounded ? 1 : AIR_CONTROL) * dt;
     state.x = Math.max(STAGE_MIN_X, Math.min(STAGE_MAX_X, state.x));
 
     if (input.jumpQueued) {
@@ -205,7 +179,6 @@ async function boot() {
     if (!state.grounded) {
       state.vy += GRAVITY * dt;
       state.y += state.vy * dt;
-
       if (state.vy <= 0) {
         const landed = surfaceUnder(state.x, previousY, state.y);
         if (landed) {
@@ -215,19 +188,16 @@ async function boot() {
         }
       }
     } else {
-      // If the player walks off a raised platform, start falling.
       const standingSurface = surfaces
         .filter((surface) => state.x >= surface.xMin && state.x <= surface.xMax)
         .sort((a, b) => b.y - a.y)
         .find((surface) => Math.abs(surface.y - state.y) < 0.06);
-
       if (!standingSurface) {
         state.grounded = false;
         state.vy = 0;
       }
     }
 
-    // Safety reset if the player somehow falls below the stage.
     if (state.y < -5) {
       state.x = -2;
       state.y = 0;
@@ -245,15 +215,12 @@ async function boot() {
       if (state.attackCooldown <= 0) {
         state.attackCooldown = 0.38;
         state.attackTimer = 0.14;
-
         const distance = Math.abs(dummyEntity.getLocalPosition().x - state.x);
         const facingDummy = Math.sign(dummyEntity.getLocalPosition().x - state.x) === state.facing;
         if (distance < 1.75 && facingDummy && Math.abs(state.y) < 1.15) {
           state.hitFlashTimer = 0.18;
           setStatus('HIT! • placeholder combat works');
-          window.setTimeout(() => {
-            setStatus(state.fallback ? 'Prototype ready • upload rumi.glb for real Rumi' : 'Rumi loaded • prototype ready');
-          }, 520);
+          window.setTimeout(() => setStatus(state.fallback ? 'Prototype ready • Rumi model failed to load' : 'Rumi loaded • prototype ready'), 520);
         }
       }
     }
@@ -261,7 +228,6 @@ async function boot() {
     slashEntity.enabled = state.attackTimer > 0;
     slashEntity.setLocalPosition(state.facing * 0.95, 1.05, 0.1);
     slashEntity.setLocalEulerAngles(0, 0, state.facing > 0 ? -22 : 22);
-
     pulseDummy(dummyEntity, dt);
   });
 }
