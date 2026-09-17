@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Rumi Render Test</title>
+<script type="importmap">
+{"imports":{"playcanvas":"https://cdn.jsdelivr.net/npm/playcanvas@2.22.2/build/playcanvas.mjs","@playcanvas/web-components":"https://cdn.jsdelivr.net/npm/@playcanvas/web-components@0.23.0/dist/pwc.min.mjs"}}
+</script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@playcanvas/web-components@0.23.0/dist/pwc.min.mjs"></script>
+<style>
+html,body,pc-app{margin:0;width:100%;height:100%;overflow:hidden;background:#1b1538}#status{position:fixed;z-index:10;top:12px;left:12px;color:white;font:700 14px system-ui;background:#0008;padding:8px 10px;border-radius:8px}
+</style>
+</head>
+<body>
+<div id="status">Loading…</div>
+<pc-app antialias="true" backend="webgl2" max-pixel-ratio="1.5">
+  <pc-asset id="rumiAsset" type="container" src="./assets/rumi.glb?v=3"></pc-asset>
+  <pc-material id="groundMat" diffuse="#55488c" roughness="0.9"></pc-material>
+  <pc-scene>
+    <pc-entity position="0 1 6"><pc-camera clear-color="#1b1538"></pc-camera></pc-entity>
+    <pc-entity rotation="45 30 0"><pc-light type="directional" intensity="2" color="#ffffff"></pc-light></pc-entity>
+    <pc-entity position="0 -.05 0" scale="5 .1 3"><pc-render type="box" material="groundMat"></pc-render></pc-entity>
+    <pc-model id="rumiDebug" asset="rumiAsset" position="0 0 0" rotation="90 0 0" scale=".01 .01 .01"></pc-model>
+  </pc-scene>
+</pc-app>
+<script type="module">
+import { whenReady } from '@playcanvas/web-components';
+const status=document.getElementById('status');
+const model=document.getElementById('rumiDebug');
+model.addEventListener('error',e=>status.textContent='MODEL ERROR: '+e.message);
+try {
+  const ready=await whenReady('#rumiDebug');
+  status.textContent=model.contentEntity ? 'Rumi GLB loaded + rendered transform applied' : 'GLB load settled but no contentEntity';
+} catch(e) { status.textContent='ERROR: '+e.message; }
+</script>
+</body>
+</html>
