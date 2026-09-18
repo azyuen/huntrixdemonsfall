@@ -242,6 +242,17 @@
 
   <div id="rotate">Rotate your phone to landscape<br><span style="font-size:14px;opacity:.65;margin-top:8px">This prototype is designed like a mobile fighting game.</span></div>
 
-  <script type="module" src="./game.js?v=upright3"></script>
+  <script>
+  window.addEventListener('error', (event) => {
+    const el = document.getElementById('status');
+    if (el) el.textContent = 'JS ERROR • ' + (event.message || 'unknown error');
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    const el = document.getElementById('status');
+    const reason = event.reason && event.reason.message ? event.reason.message : String(event.reason || 'unknown error');
+    if (el) el.textContent = 'PROMISE ERROR • ' + reason;
+  });
+  </script>
+  <script type="module" src="./game.js?v=upright4"></script>
 </body>
 </html>
