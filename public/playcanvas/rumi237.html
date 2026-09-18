@@ -216,16 +216,20 @@
           return;
         }
         try {
+          const facing = new pc.Entity('RumiFacing');
+          facing.setLocalEulerAngles(0, 90, 0);
+          app.root.addChild(facing);
+
           const rumi = asset.resource.instantiateRenderEntity({ castShadows: true });
           rumi.name = 'Rumi237';
           rumi.setLocalScale(0.4, 0.4, 0.4);
-          rumi.setLocalEulerAngles(0, 0, 0);
+          rumi.setLocalEulerAngles(-90, 0, 0);
           rumi.setLocalPosition(0, 0, 0);
-          app.root.addChild(rumi);
+          facing.addChild(rumi);
 
           const renders = rumi.findComponents('render');
           const meshInstances = renders.reduce((sum, render) => sum + render.meshInstances.length, 0);
-          setStatus(`SUCCESS • scale 0.4 • ${patched.after} joints • ${renders.length} render components • ${meshInstances} mesh instances`);
+          setStatus(`SUCCESS • UPRIGHT + SIDE-ON • scale 0.4 • ${patched.after} joints • ${renders.length} render components • ${meshInstances} mesh instances`);
           URL.revokeObjectURL(blobUrl);
         } catch (e) {
           setStatus(`INSTANTIATE ERROR: ${e.message}`);
