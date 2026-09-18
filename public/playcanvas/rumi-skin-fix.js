@@ -146,4 +146,4 @@ function pruneUnusedSkinJoints(arrayBuffer) {
 }
 
 
-export { pruneUnusedSkinJoints };\n
+export { pruneUnusedSkinJoints };
