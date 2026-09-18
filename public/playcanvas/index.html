@@ -141,9 +141,7 @@
 </head>
 <body>
   <pc-app antialias="true" max-pixel-ratio="1.5">
-    <pc-asset id="rumiAsset" type="container" src="./assets/rumi.glb"></pc-asset>
-
-    <pc-material id="stageMat" diffuse="#342c70" roughness="0.82"></pc-material>
+<pc-material id="stageMat" diffuse="#342c70" roughness="0.82"></pc-material>
     <pc-material id="platformMat" diffuse="#6d57ad" roughness="0.72"></pc-material>
     <pc-material id="backdropMat" diffuse="#15123b" emissive="#080617" emissive-intensity="0.7"></pc-material>
     <pc-material id="city1" diffuse="#211b55" emissive="#100b33" emissive-intensity="0.55"></pc-material>
@@ -197,9 +195,7 @@
 
       <!-- Player wrapper keeps gameplay transform separate from model transform. -->
       <pc-entity id="player" name="player" position="-2 0 0">
-        <pc-model id="rumi" name="Rumi" asset="rumiAsset" scale=".01 .01 .01" rotation="0 90 0"></pc-model>
-
-        <!-- Visible only if Rumi GLB is missing. -->
+<!-- Visible only if Rumi GLB is missing. -->
         <pc-entity id="fallback" name="fallback" enabled="false" position="0 .85 0" scale=".62 1.7 .45">
           <pc-render type="capsule" material="fallbackMat"></pc-render>
         </pc-entity>
