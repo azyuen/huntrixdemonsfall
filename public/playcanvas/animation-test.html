@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<title>Rumi Animation Retarget Test</title>
+<style>
+html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;background:#17123a;touch-action:none}
+body{font-family:system-ui,-apple-system,sans-serif}
+#status{position:fixed;z-index:10;top:12px;left:12px;right:12px;padding:8px 10px;border-radius:9px;background:#0009;color:#fff;font-size:13px;font-weight:700}
+#buttons{position:fixed;z-index:10;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+button{border:1px solid #ffffff55;border-radius:999px;background:#2a205dcc;color:#fff;padding:10px 16px;font:700 14px system-ui}
+button.active{background:#8a45e6}
+</style>
+</head>
+<body>
+<canvas id="app"></canvas>
+<div id="status">Starting…</div>
+<div id="buttons">
+<button data-clip="Idle" class="active">Idle</button>
+<button data-clip="Running">Run</button>
+<button data-clip="Jump">Jump</button>
+<button data-clip="Land">Fall → Land</button>
+</div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.22.2/build/playcanvas.mjs';
+import { pruneUnusedSkinJoints } from './rumi-skin-fix.js?v=2';
+import { MIXAMO_BONES, MIXAMO_CLIPS, getMixamoQuat } from './mixamo-clips.js?v=1';
+
+const statusEl=document.getElementById('status');
+const say=s=>{statusEl.textContent=s;console.log(s)};
+window.addEventListener('error',e=>say('JS ERROR • '+(e.message||'unknown')));
+window.addEventListener('unhandledrejection',e=>say('PROMISE ERROR • '+(e.reason?.message||e.reason||'unknown')));
+
+const canvas=document.getElementById('app');
+const app=new pc.Application(canvas,{graphicsDeviceOptions:{antialias:true}});
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
+app.setCanvasResolution(pc.RESOLUTION_AUTO);
+app.start();
+window.addEventListener('resize',()=>app.resizeCanvas());
+
+const camera=new pc.Entity('camera');
+camera.addComponent('camera',{clearColor:new pc.Color(.09,.07,.2),farClip:100});
+camera.setPosition(0,1.55,6.4);
+camera.lookAt(0,1.15,0);
+app.root.addChild(camera);
+
+const key=new pc.Entity('key');
+key.addComponent('light',{type:'directional',intensity:2.0,color:new pc.Color(1,.96,1)});
+key.setEulerAngles(35,25,0); app.root.addChild(key);
+const fill=new pc.Entity('fill');
+fill.addComponent('light',{type:'directional',intensity:.7,color:new pc.Color(.55,.35,1)});
+fill.setEulerAngles(-25,-140,0); app.root.addChild(fill);
+
+const floorMat=new pc.StandardMaterial(); floorMat.diffuse=new pc.Color(.24,.19,.45); floorMat.update();
+const floor=new pc.Entity('floor'); floor.addComponent('render',{type:'box',material:floorMat});
+floor.setLocalScale(5,.08,2.5); floor.setPosition(0,-.04,0); app.root.addChild(floor);
+
+const TARGET={
+Hips:'pelvis_05',Spine:'spine_01_06',Spine1:'spine_03_08',Spine2:'spine_05_010',
+Neck:'neck_01_011',Head:'head_013',
+LeftShoulder:'clavicle_l_0122',LeftArm:'upperarm_l_0123',LeftForeArm:'lowerarm_l_0124',LeftHand:'hand_l_0126',
+RightShoulder:'clavicle_r_0165',RightArm:'upperarm_r_0146',RightForeArm:'lowerarm_r_0167',RightHand:'hand_r_0168',
+LeftUpLeg:'thigh_l_0241',LeftLeg:'calf_l_0225',LeftFoot:'foot_l_0243',
+RightUpLeg:'thigh_r_0255',RightLeg:'calf_r_0256',RightFoot:'foot_r_0257'
+};
+
+function qnorm(q){const n=Math.hypot(q[0],q[1],q[2],q[3])||1;return q.map(v=>v/n)}
+function qmul(a,b){return[
+a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],
+a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],
+a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],
+a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]
+]}
+function qinv(q){return[-q[0],-q[1],-q[2],q[3]]}
+function qslerp(a,b,t){
+ a=qnorm(a); b=qnorm(b); let dot=a[0]*b[0]+a[1]*b[1]+a[2]*b[2]+a[3]*b[3];
+ if(dot<0){b=b.map(v=>-v);dot=-dot}
+ if(dot>.9995)return qnorm(a.map((v,i)=>v+(b[i]-v)*t));
+ const th=Math.acos(Math.max(-1,Math.min(1,dot))),s=Math.sin(th);
+ return a.map((v,i)=>(Math.sin((1-t)*th)*v+Math.sin(t*th)*b[i])/s);
+}
+const arr=q=>[q.x,q.y,q.z,q.w];
+const pcq=q=>new pc.Quat(q[0],q[1],q[2],q[3]);
+
+let clipName='Idle',clipTime=0,rumi=null,bones=[],baseLocal=[];
+function choose(name){
+ clipName=name;clipTime=0;
+ document.querySelectorAll('button[data-clip]').forEach(b=>b.classList.toggle('active',b.dataset.clip===name));
+ say('Playing '+name+' • Mixamo → Rumi retarget');
+}
+document.querySelectorAll('button[data-clip]').forEach(b=>b.addEventListener('click',()=>choose(b.dataset.clip)));
+
+function sampleClip(name,time){
+ const c=MIXAMO_CLIPS[name];
+ const duration=(c.frames-1)/c.fps;
+ let t=c.loop ? (time % duration) : Math.min(time,duration);
+ const f=t*c.fps, f0=Math.floor(f), f1=Math.min(c.frames-1,f0+1), a=f-f0;
+ return MIXAMO_BONES.map((_,i)=>qslerp(getMixamoQuat(name,f0,i),getMixamoQuat(name,f1,i),a));
+}
+
+async function loadRumi(){
+ say('Loading Rumi + pruning 288 → 237 joints…');
+ const res=await fetch('./assets/rumi.glb?animtest=1',{cache:'no-store'});
+ if(!res.ok)throw new Error('Rumi HTTP '+res.status);
+ const patched=pruneUnusedSkinJoints(await res.arrayBuffer());
+ const url=URL.createObjectURL(new Blob([patched.buffer],{type:'model/gltf-binary'}));
+ const asset=await new Promise((resolve,reject)=>app.assets.loadFromUrlAndFilename(url,'rumi-anim.glb','container',(e,a)=>e?reject(new Error(String(e))):resolve(a)));
+
+ const facing=new pc.Entity('facing'); facing.setEulerAngles(0,90,0); app.root.addChild(facing);
+ rumi=asset.resource.instantiateRenderEntity({castShadows:true});
+ rumi.setLocalScale(.4,.4,.4); rumi.setLocalEulerAngles(-90,0,0); facing.addChild(rumi);
+
+ bones=MIXAMO_BONES.map(n=>rumi.findByName(TARGET[n]||''));
+ baseLocal=bones.map(b=>b?arr(b.getLocalRotation().clone()):null);
+ const missing=MIXAMO_BONES.filter((n,i)=>!bones[i]);
+ URL.revokeObjectURL(url);
+ say(missing.length?'Missing bones: '+missing.join(', '):'Ready • Idle playing • 20 mapped bones');
+}
+
+await loadRumi();
+
+app.on('update',dt=>{
+ if(!rumi)return;
+ clipTime+=Math.min(dt,.05);
+ const deltas=sampleClip(clipName,clipTime);
+
+ // Restore Rumi's bind pose first.
+ bones.forEach((b,i)=>{if(b&&baseLocal[i])b.setLocalRotation(pcq(baseLocal[i]))});
+
+ // Capture bind-pose world rotations under the current corrected Rumi root.
+ const baseWorld=bones.map(b=>b?arr(b.getRotation().clone()):null);
+ const root=arr(rumi.getRotation().clone()), rootInv=qinv(root);
+
+ // Mixamo deltas are world-space. Rotate them into Rumi's current model orientation,
+ // then apply them to each target bone's bind-pose world rotation.
+ bones.forEach((b,i)=>{
+   if(!b||!baseWorld[i])return;
+   const aligned=qmul(qmul(root,deltas[i]),rootInv);
+   b.setRotation(pcq(qnorm(qmul(aligned,baseWorld[i]))));
+ });
+});
+</script>
+</body>
+</html>
