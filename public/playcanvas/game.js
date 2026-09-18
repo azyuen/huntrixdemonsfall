@@ -1,6 +1,6 @@
 import * as pc from 'playcanvas';
 import { whenReady } from '@playcanvas/web-components';
-import { pruneUnusedSkinJoints } from './rumi-skin-fix.js?v=1';
+import { pruneUnusedSkinJoints } from './rumi-skin-fix.js?v=2';
 
 const statusEl = document.getElementById('status');
 const appEl = document.querySelector('pc-app');
