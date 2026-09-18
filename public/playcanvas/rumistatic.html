@@ -35,7 +35,7 @@ try{
  say('Removing skinning…'); const staticGlb=stripSkin(raw); const url=URL.createObjectURL(new Blob([staticGlb],{type:'model/gltf-binary'}));
  app.assets.loadFromUrlAndFilename(url,'rumi-static.glb','container',(err,asset)=>{
    if(err){say('LOAD ERROR: '+err);return;}
-   try{const ent=asset.resource.instantiateRenderEntity({castShadows:true});ent.setLocalScale(.01,.01,.01);ent.setLocalEulerAngles(0,0,0);ent.setLocalPosition(0,0,0);app.root.addChild(ent);const rs=ent.findComponents('render');const mi=rs.reduce((n,r)=>n+r.meshInstances.length,0);say(`STATIC SUCCESS • ${rs.length} render components • ${mi} mesh instances`);}catch(e){say('INSTANTIATE ERROR: '+e.message)}
+   try{const ent=asset.resource.instantiateRenderEntity({castShadows:true});ent.setLocalScale(.4,.4,.4);ent.setLocalEulerAngles(0,0,0);ent.setLocalPosition(0,0,0);app.root.addChild(ent);const rs=ent.findComponents('render');const mi=rs.reduce((n,r)=>n+r.meshInstances.length,0);say(`STATIC SUCCESS • scale 0.4 • ${rs.length} render components • ${mi} mesh instances`);}catch(e){say('INSTANTIATE ERROR: '+e.message)}
  });
 }catch(e){say('ERROR: '+e.message)}
 </script>
