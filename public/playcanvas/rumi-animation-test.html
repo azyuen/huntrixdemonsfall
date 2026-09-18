@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no" />
+<title>Rumi Mixamo Animation Test</title>
+<style>
+html,body,#application{margin:0;width:100%;height:100%;overflow:hidden;background:#171231;touch-action:none}
+#status{position:fixed;z-index:20;top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));padding:9px 12px;border-radius:10px;background:#0009;color:#fff;font:700 12px/1.35 system-ui,-apple-system,sans-serif;pointer-events:none}
+#buttons{position:fixed;z-index:30;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:8px}
+button{border:1px solid #ffffff55;border-radius:999px;padding:10px 15px;background:#281d5ddd;color:white;font:800 13px system-ui;backdrop-filter:blur(8px)}
+button.active{background:#8b52e8}
+#note{position:fixed;z-index:20;left:50%;bottom:72px;transform:translateX(-50%);color:#ffffffaa;font:600 11px system-ui;white-space:nowrap}
+</style>
+</head>
+<body>
+<canvas id="application"></canvas>
+<div id="status">Starting animation test…</div>
+<div id="note">Mixamo → Rumi retarget test • rotations only</div>
+<div id="buttons">
+  <button data-clip="Idle" class="active">Idle</button>
+  <button data-clip="Run">Run</button>
+  <button data-clip="Jump">Jump</button>
+  <button data-clip="Land">Land</button>
+</div>
+<script type="module">
+import * as pc from 'https://cdn.jsdelivr.net/npm/playcanvas@2.22.2/build/playcanvas.mjs';
+import { pruneUnusedSkinJoints } from './rumi-skin-fix.js?v=3';
+
+const statusEl=document.getElementById('status');
+const say=(s)=>{statusEl.textContent=s;console.log(s)};
+
+window.addEventListener('error',e=>say('JS ERROR • '+(e.message||'unknown')));
+window.addEventListener('unhandledrejection',e=>say('PROMISE ERROR • '+(e.reason?.message||e.reason||'unknown')));
+
+const canvas=document.getElementById('application');
+const app=new pc.Application(canvas,{graphicsDeviceOptions:{antialias:true}});
+app.setCanvasResolution(pc.RESOLUTION_AUTO);
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
+app.start();
+window.addEventListener('resize',()=>app.resizeCanvas());
+
+const camera=new pc.Entity('camera');
+camera.addComponent('camera',{clearColor:new pc.Color(.09,.07,.2),farClip:100});
+camera.setPosition(0,1.05,5.2);
+camera.lookAt(0,.9,0);
+app.root.addChild(camera);
+
+const key=new pc.Entity('key');
+key.addComponent('light',{type:'directional',intensity:2.15,color:new pc.Color(1,.96,1)});
+key.setEulerAngles(35,25,0);
+app.root.addChild(key);
+
+const fill=new pc.Entity('fill');
+fill.addComponent('light',{type:'directional',intensity:.75,color:new pc.Color(.6,.4,1)});
+fill.setEulerAngles(-25,-140,0);
+app.root.addChild(fill);
+
+const mat=new pc.StandardMaterial();
+mat.diffuse=new pc.Color(.24,.19,.44);
+mat.update();
+const floor=new pc.Entity('floor');
+floor.addComponent('render',{type:'box',material:mat});
+floor.setLocalScale(5,.08,2.5);
+floor.setPosition(0,-.04,0);
+app.root.addChild(floor);
+
+function decodeClip(clip,boneCount){
+  const raw=atob(clip.data);
+  const a=new Int8Array(raw.length);
+  for(let i=0;i<raw.length;i++) a[i]=(raw.charCodeAt(i)<<24)>>24;
+  if(a.length!==clip.frames*boneCount*4) throw new Error(clip.name+' animation data length mismatch');
+  return {...clip,values:a};
+}
+
+function readQuat(clip,frame,boneIndex){
+  const i=(frame*animData.bones.length+boneIndex)*4;
+  let x=clip.values[i]/127,y=clip.values[i+1]/127,z=clip.values[i+2]/127,w=clip.values[i+3]/127;
+  const n=Math.hypot(x,y,z,w)||1;
+  return [x/n,y/n,z/n,w/n];
+}
+
+function slerp(a,b,t){
+  let bx=b[0],by=b[1],bz=b[2],bw=b[3];
+  let dot=a[0]*bx+a[1]*by+a[2]*bz+a[3]*bw;
+  if(dot<0){dot=-dot;bx=-bx;by=-by;bz=-bz;bw=-bw}
+  if(dot>.9995){
+    const x=a[0]+t*(bx-a[0]),y=a[1]+t*(by-a[1]),z=a[2]+t*(bz-a[2]),w=a[3]+t*(bw-a[3]);
+    const n=Math.hypot(x,y,z,w)||1; return [x/n,y/n,z/n,w/n];
+  }
+  dot=Math.min(1,Math.max(-1,dot));
+  const theta0=Math.acos(dot),sin0=Math.sin(theta0);
+  const s0=Math.sin((1-t)*theta0)/sin0,s1=Math.sin(t*theta0)/sin0;
+  return [a[0]*s0+bx*s1,a[1]*s0+by*s1,a[2]*s0+bz*s1,a[3]*s0+bw*s1];
+}
+
+function collectBones(root,names){
+  const wanted=new Set(names),found=new Map();
+  const walk=(e)=>{
+    if(wanted.has(e.name)) found.set(e.name,e);
+    for(const child of e.children||[]) walk(child);
+  };
+  walk(root);
+  return found;
+}
+
+async function loadContainer(url,filename){
+  return await new Promise((resolve,reject)=>{
+    app.assets.loadFromUrlAndFilename(url,filename,'container',(err,asset)=>err?reject(new Error(String(err))):resolve(asset));
+  });
+}
+
+let animData=null;
+let clips=new Map();
+let boneEntities=new Map();
+let active=null;
+let playTime=0;
+
+async function boot(){
+  say('Loading retargeted Mixamo clips…');
+  const animRes=await fetch('./rumi-anims-packed.json?v=1',{cache:'no-store'});
+  if(!animRes.ok) throw new Error('animation data HTTP '+animRes.status);
+  animData=await animRes.json();
+  for(const c of animData.clips) clips.set(c.name,decodeClip(c,animData.bones.length));
+
+  say('Loading Rumi…');
+  const res=await fetch('./assets/rumi.glb?animtest=1',{cache:'no-store'});
+  if(!res.ok) throw new Error('Rumi GLB HTTP '+res.status);
+  const patched=pruneUnusedSkinJoints(await res.arrayBuffer());
+  const blobUrl=URL.createObjectURL(new Blob([patched.buffer],{type:'model/gltf-binary'}));
+  const asset=await loadContainer(blobUrl,'rumi-animation-test.glb');
+
+  const facing=new pc.Entity('RumiFacing');
+  facing.setLocalEulerAngles(0,90,0);
+  app.root.addChild(facing);
+
+  const rumi=asset.resource.instantiateRenderEntity({castShadows:true});
+  rumi.name='RumiAnimated';
+  rumi.setLocalScale(.4,.4,.4);
+  rumi.setLocalEulerAngles(-90,0,0);
+  rumi.setLocalPosition(0,0,0);
+  facing.addChild(rumi);
+  URL.revokeObjectURL(blobUrl);
+
+  boneEntities=collectBones(rumi,animData.bones);
+  const missing=animData.bones.filter(n=>!boneEntities.has(n));
+  if(missing.length) throw new Error('Missing Rumi bones: '+missing.join(', '));
+
+  active=clips.get('Idle');
+  playTime=0;
+  say('READY • Idle playing • '+boneEntities.size+' Rumi bones retargeted');
+
+  app.on('update',dt=>{
+    if(!active)return;
+    playTime+=Math.min(dt,.05);
+    if(active.loop) playTime=playTime%active.duration;
+    else playTime=Math.min(playTime,active.duration);
+
+    const framePos=(active.duration>0?playTime/active.duration:0)*(active.frames-1);
+    const f0=Math.floor(framePos),f1=Math.min(active.frames-1,f0+1),mix=framePos-f0;
+
+    for(let bi=0;bi<animData.bones.length;bi++){
+      const bone=boneEntities.get(animData.bones[bi]);
+      const q=slerp(readQuat(active,f0,bi),readQuat(active,f1,bi),mix);
+      bone.setLocalRotation(q[0],q[1],q[2],q[3]);
+    }
+  });
+}
+
+for(const b of document.querySelectorAll('button[data-clip]')){
+  b.addEventListener('click',()=>{
+    const name=b.dataset.clip;
+    if(!clips.has(name))return;
+    active=clips.get(name);playTime=0;
+    document.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
+    say('PLAYING • '+name+' • '+active.frames+' sampled frames • '+active.duration.toFixed(2)+'s');
+  });
+}
+
+boot().catch(e=>{console.error(e);say('ERROR • '+e.message)});
+</script>
+</body>
+</html>
