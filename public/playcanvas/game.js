@@ -1,9 +1,9 @@
+import * as pc from 'playcanvas';
 import { whenReady } from '@playcanvas/web-components';
+import { pruneUnusedSkinJoints } from './rumi-skin-fix.js?v=1';
 
 const statusEl = document.getElementById('status');
-const rumiModelEl = document.getElementById('rumi');
 const appEl = document.querySelector('pc-app');
-const rumiAssetEl = document.getElementById('rumiAsset');
 
 const input = {
   left: false,
@@ -30,7 +30,7 @@ const JUMP_SPEED = 6.45;
 const GRAVITY = -16.5;
 const STAGE_MIN_X = -6.7;
 const STAGE_MAX_X = 6.7;
-const RUMI_SCALE = 0.01;
+const RUMI_SCALE = 0.4;
 
 const surfaces = [
   { xMin: -50, xMax: 50, y: 0 },
@@ -100,8 +100,6 @@ window.addEventListener('blur', () => {
   input.right = false;
 });
 
-rumiAssetEl.addEventListener('error', () => { state.fallback = true; });
-rumiModelEl.addEventListener('error', () => { state.fallback = true; });
 appEl.addEventListener('error', (event) => setStatus(`3D failed to start: ${event.message}`));
 
 function surfaceUnder(x, fromY, toY) {
@@ -115,10 +113,10 @@ function surfaceUnder(x, fromY, toY) {
   return best;
 }
 
-function updateFacing(rumiEntity) {
-  // The source GLB has a -90° X root transform. Compensate with +90° X
-  // on the host, then yaw ±90° so the fighter faces along the gameplay axis.
-  rumiEntity.setLocalEulerAngles(90, state.facing > 0 ? 90 : -90, 0);
+function updateFacing(facingEntity) {
+  // Rumi's corrected model faces +Z. Yaw the outer pivot so +Z becomes
+  // +X or -X along the 2.5D fighting plane.
+  facingEntity.setLocalEulerAngles(0, state.facing > 0 ? 90 : -90, 0);
 }
 
 function pulseDummy(dummyEntity, dt) {
@@ -131,28 +129,67 @@ function pulseDummy(dummyEntity, dt) {
   dummyEntity.setLocalScale(1.08, squeeze, 1.08);
 }
 
+async function loadRumiIntoArena(app, playerEntity, fallbackEntity) {
+  let blobUrl = null;
+  fallbackEntity.enabled = true;
+  setStatus('Preparing Rumi • pruning skin…');
+
+  try {
+    const response = await fetch('./assets/rumi.glb?arena237=3', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`GLB fetch failed: HTTP ${response.status}`);
+
+    const raw = await response.arrayBuffer();
+    const patched = pruneUnusedSkinJoints(raw);
+
+    blobUrl = URL.createObjectURL(
+      new Blob([patched.buffer], { type: 'model/gltf-binary' })
+    );
+
+    const asset = await new Promise((resolve, reject) => {
+      app.assets.loadFromUrlAndFilename(blobUrl, 'rumi-arena.glb', 'container', (err, loadedAsset) => {
+        if (err) reject(new Error(String(err)));
+        else resolve(loadedAsset);
+      });
+    });
+
+    const facingEntity = new pc.Entity('RumiFacing');
+    playerEntity.addChild(facingEntity);
+    updateFacing(facingEntity);
+
+    const rumi = asset.resource.instantiateRenderEntity({ castShadows: true });
+    rumi.name = 'Rumi';
+    rumi.setLocalScale(RUMI_SCALE, RUMI_SCALE, RUMI_SCALE);
+
+    // The successful 237-joint phone test showed the skinned pose is rotated
+    // +90° around X (lying face-down). -90° stands her upright.
+    rumi.setLocalEulerAngles(-90, 0, 0);
+    rumi.setLocalPosition(0, 0, 0);
+    facingEntity.addChild(rumi);
+
+    fallbackEntity.enabled = false;
+    state.fallback = false;
+    setStatus(`Rumi ready • upright • side-on • ${patched.after} joints`);
+
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    return facingEntity;
+  } catch (error) {
+    console.error(error);
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    state.fallback = true;
+    fallbackEntity.enabled = true;
+    setStatus(`Rumi load failed • fallback active`);
+    return null;
+  }
+}
+
 async function boot() {
   const { app } = await whenReady('pc-app');
   const { entity: playerEntity } = await whenReady('#player');
   const { entity: fallbackEntity } = await whenReady('#fallback');
   const { entity: slashEntity } = await whenReady('#slash');
   const { entity: dummyEntity } = await whenReady('#dummy');
-  const { entity: rumiEntity } = await whenReady('#rumi');
 
-  if (!rumiModelEl.contentEntity) {
-    state.fallback = true;
-    rumiModelEl.entity.enabled = false;
-    fallbackEntity.enabled = true;
-    setStatus('Prototype ready • Rumi model failed to load');
-  } else {
-    state.fallback = false;
-    fallbackEntity.enabled = false;
-    rumiModelEl.entity.enabled = true;
-    rumiEntity.setLocalScale(RUMI_SCALE, RUMI_SCALE, RUMI_SCALE);
-    setStatus('Rumi loaded • upright transform applied');
-  }
-
-  updateFacing(rumiEntity);
+  const facingEntity = await loadRumiIntoArena(app, playerEntity, fallbackEntity);
 
   app.on('update', (dt) => {
     dt = Math.min(dt, 1 / 20);
@@ -163,7 +200,7 @@ async function boot() {
 
     if (move !== 0) {
       state.facing = move > 0 ? 1 : -1;
-      updateFacing(rumiEntity);
+      if (facingEntity) updateFacing(facingEntity);
     }
 
     state.x += move * MOVE_SPEED * (state.grounded ? 1 : AIR_CONTROL) * dt;
@@ -222,7 +259,7 @@ async function boot() {
         if (distance < 1.75 && facingDummy && Math.abs(state.y) < 1.15) {
           state.hitFlashTimer = 0.18;
           setStatus('HIT! • placeholder combat works');
-          window.setTimeout(() => setStatus(state.fallback ? 'Prototype ready • Rumi model failed to load' : 'Rumi loaded • upright transform applied'), 520);
+          window.setTimeout(() => setStatus(state.fallback ? 'Rumi load failed • fallback active' : 'Rumi ready • upright • side-on • 237 joints'), 520);
         }
       }
     }
